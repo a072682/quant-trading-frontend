@@ -1,0 +1,60 @@
+.calendar-view {
+  background: #0d1b2e;
+  border: 1px solid #1e3a5f;
+  border-radius: 12px;
+  padding: 1rem;
+
+  &__weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    margin-bottom: 0.5rem;
+
+    .weekday-label {
+      text-align: center;
+      color: rgba(200, 220, 255, 0.5);
+      font-size: 0.75rem;
+      padding: 0.25rem 0;
+    }
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+  }
+}
+
+.calendar-cell {
+  min-height: 48px;
+  border: 1px solid #1e3a5f;
+  border-radius: 4px;
+  padding: 0.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+
+  &--empty {
+    border-color: transparent;
+    background: transparent;
+  }
+
+  .cell-day {
+    font-size: 0.75rem;
+    color: rgba(200, 220, 255, 0.6);
+  }
+}
+
+.trade-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+
+  &--buy {
+    background: #26a69a;
+  }
+
+  &--sell {
+    background: #ef5350;
+  }
+}

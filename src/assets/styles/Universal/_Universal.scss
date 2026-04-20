@@ -1,0 +1,110 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100vh;
+  font-family: "JetBrains Mono", "Noto Sans TC", monospace;
+}
+
+.main-content {
+  padding-top: 70px;
+  min-height: 100vh;
+}
+
+.section-title {
+  color: #4fc3f7;
+  border-left: 3px solid #4fc3f7;
+  padding-left: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.btn-buy {
+  background: #26a69a;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 0.6rem 1.2rem;
+  font-weight: 600;
+  transition: background 0.2s;
+  cursor: pointer;
+
+  &:hover {
+    background: #1e8a7f;
+  }
+}
+
+.btn-sell {
+  background: #ef5350;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 0.6rem 1.2rem;
+  font-weight: 600;
+  transition: background 0.2s;
+  cursor: pointer;
+
+  &:hover {
+    background: #c62828;
+  }
+}
+
+.stat-card {
+  background: #0d1b2e;
+  border: 1px solid #1e3a5f;
+  border-radius: 10px;
+  padding: 1rem;
+  text-align: center;
+
+  .stat-label {
+    color: rgba(200, 220, 255, 0.6);
+    font-size: 0.8rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .stat-value {
+    color: #e0f0ff;
+    font-size: 1.4rem;
+    font-weight: 700;
+  }
+}
+
+.settings-form {
+  max-width: 500px;
+
+  .settings-group {
+    margin-bottom: 1.5rem;
+  }
+
+  .settings-label {
+    display: block;
+    color: #4fc3f7;
+    font-size: 0.85rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .settings-input {
+    background: #0d1b2e;
+    border: 1px solid #1e3a5f;
+    color: #e0f0ff;
+    border-radius: 6px;
+    padding: 0.4rem 0.75rem;
+    width: 100px;
+
+    &--wide {
+      width: 100%;
+    }
+
+    &:focus {
+      outline: none;
+      border-color: #4fc3f7;
+    }
+  }
+
+  .settings-hint {
+    display: block;
+    color: rgba(200, 220, 255, 0.5);
+    font-size: 0.75rem;
+    margin-top: 0.3rem;
+  }
+}

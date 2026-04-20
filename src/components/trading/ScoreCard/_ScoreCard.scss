@@ -1,0 +1,90 @@
+.score-card {
+  background: #0d1b2e;
+  border: 1px solid #1e3a5f;
+  border-radius: 12px;
+  padding: 1.25rem;
+  transition: border-color 0.2s;
+
+  &.status--buy {
+    border-color: #26a69a;
+  }
+
+  &.status--sell {
+    border-color: #ef5350;
+  }
+
+  &.status--watch {
+    border-color: #ffa726;
+  }
+
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+
+    .stock-code {
+      color: #4fc3f7;
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+
+    .stock-name {
+      color: rgba(200, 220, 255, 0.7);
+      font-size: 0.85rem;
+    }
+  }
+
+  &__score {
+    text-align: center;
+    margin-bottom: 1rem;
+
+    .score-number {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: #e0f0ff;
+    }
+
+    .score-label {
+      color: rgba(200, 220, 255, 0.5);
+      font-size: 0.9rem;
+      margin-left: 0.25rem;
+    }
+  }
+
+  &__params {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 1rem;
+
+    .param-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+
+      span:first-child {
+        color: rgba(200, 220, 255, 0.6);
+        font-size: 0.75rem;
+      }
+
+      span:last-child {
+        color: #e0f0ff;
+        font-weight: 600;
+      }
+    }
+  }
+
+  &__action {
+    text-align: center;
+
+    .action-label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      background: rgba(79, 195, 247, 0.15);
+      color: #4fc3f7;
+    }
+  }
+}

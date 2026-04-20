@@ -1,0 +1,25 @@
+.signal-badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+
+  &.badge--buy {
+    background: rgba(38, 166, 154, 0.2);
+    color: #26a69a;
+    border: 1px solid #26a69a;
+  }
+
+  &.badge--sell {
+    background: rgba(239, 83, 80, 0.2);
+    color: #ef5350;
+    border: 1px solid #ef5350;
+  }
+
+  &.badge--watch {
+    background: rgba(255, 167, 38, 0.2);
+    color: #ffa726;
+    border: 1px solid #ffa726;
+  }
+}

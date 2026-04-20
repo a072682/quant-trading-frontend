@@ -1,0 +1,26 @@
+.quant-header {
+  background: #0a0f1e;
+  border-bottom: 1px solid #1e3a5f;
+
+  .navbar-brand {
+    color: #e0f0ff;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+
+  .nav-link {
+    color: rgba(200, 220, 255, 0.7);
+    transition: color 0.2s;
+
+    &:hover,
+    &.active {
+      color: #4fc3f7;
+      border-bottom: 2px solid #4fc3f7;
+    }
+  }
+
+  .ws-badge {
+    font-size: 0.65rem;
+    vertical-align: middle;
+  }
+}
