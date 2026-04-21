@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { getTodaySignals, runNow } from "../api/signals";
+import { getTodaySignals, runStock } from "../api/signals";
 import { getPositions } from "../api/positions";
 import { setPositions } from "../slice/positionSlice";
 import { open, MODALS } from "../slice/modalSlice";
@@ -69,8 +69,11 @@ export default function DashboardPage() {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await runNow();
-      const signals = await fetchAllSignals(getWatchList());
+      const list = getWatchList();
+      await Promise.allSettled(
+        list.map(({ code, name }) => runStock(code, name))
+      );
+      const signals = await fetchAllSignals(list);
       setWatchSignals(signals);
     } catch (err) {
       console.error("重新整理失敗", err);
