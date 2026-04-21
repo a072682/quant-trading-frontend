@@ -8,3 +8,6 @@ export const runNow = () =>
 
 export const getSignalHistory = (stockCode) =>
   api.get(`/api/v1/signals/history/${stockCode}`);
+
+export const getSignalsByDate = (date) =>
+  api.get(`/api/v1/signals/by-date/${date}`);
