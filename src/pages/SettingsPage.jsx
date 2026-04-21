@@ -2,20 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
 import { runNow } from "../api/signals";
-import { getWatchList } from "../utils/watchList";
-
-const STOCK_NAMES = {
-  "0050": "元大台灣50",
-  "0056": "元大高股息",
-  "2886": "兆豐金",
-  "2412": "中華電",
-  "5880": "合庫金",
-  "2330": "台積電",
-  "2454": "聯發科",
-  "2317": "鴻海",
-  "2308": "台達電",
-  "2882": "國泰金",
-};
+import { getWatchList, getStockName } from "../utils/watchList";
 
 const DEFAULT_STRATEGY = { buyThreshold: 5, stopLoss: -3, profitTarget: 6 };
 const LS_WATCH = "watchList";
@@ -55,7 +42,7 @@ export default function SettingsPage() {
   const addStock = () => {
     const code = newCode.trim().toUpperCase();
     if (!code || watchList.some((item) => item.code === code)) return;
-    const updated = [...watchList, { code, name: STOCK_NAMES[code] ?? code }];
+    const updated = [...watchList, { code, name: getStockName(code) }];
     setWatchList(updated);
     localStorage.setItem(LS_WATCH, JSON.stringify(updated));
     setNewCode("");
