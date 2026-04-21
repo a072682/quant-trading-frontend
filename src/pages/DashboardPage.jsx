@@ -6,14 +6,7 @@ import { setPositions } from "../slice/positionSlice";
 import { open, MODALS } from "../slice/modalSlice";
 import ScoreCard from "../components/trading/ScoreCard/ScoreCard";
 import PositionCard from "../components/trading/PositionCard/PositionCard";
-
-const WATCH_LIST = [
-  { code: "0056", name: "元大高股息" },
-  { code: "0050", name: "元大台灣50" },
-  { code: "2886", name: "兆豐金" },
-  { code: "2412", name: "中華電" },
-  { code: "5880", name: "合庫金" },
-];
+import { getWatchList } from "../utils/watchList";
 
 const mapSignal = (d) => ({
   stockCode: d.stock_code,
@@ -36,9 +29,9 @@ const mapPosition = (d) => ({
   unrealizedProfit: d.unrealized_profit,
 });
 
-async function fetchAllSignals() {
+async function fetchAllSignals(list) {
   const results = await Promise.all(
-    WATCH_LIST.map(({ code }) => getTodaySignals(code))
+    list.map(({ code }) => getTodaySignals(code))
   );
   return results.map((res) => mapSignal(res.data.data));
 }
@@ -53,7 +46,7 @@ export default function DashboardPage() {
     const init = async () => {
       try {
         const [signals, posRes] = await Promise.all([
-          fetchAllSignals(),
+          fetchAllSignals(getWatchList()),
           getPositions(),
         ]);
         setWatchSignals(signals);
@@ -72,7 +65,7 @@ export default function DashboardPage() {
     setIsRefreshing(true);
     try {
       await runNow();
-      const signals = await fetchAllSignals();
+      const signals = await fetchAllSignals(getWatchList());
       setWatchSignals(signals);
     } catch (err) {
       console.error("重新整理失敗", err);

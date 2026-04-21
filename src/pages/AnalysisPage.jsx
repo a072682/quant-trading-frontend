@@ -13,14 +13,7 @@ import {
 import { getSignalHistory } from "../api/signals";
 import { getKlineData } from "../api/stocks";
 import KLineChart from "../components/trading/KLineChart/KLineChart";
-
-const WATCH_LIST = [
-  { code: "0056", name: "元大高股息" },
-  { code: "0050", name: "元大台灣50" },
-  { code: "2886", name: "兆豐金" },
-  { code: "2412", name: "中華電" },
-  { code: "5880", name: "合庫金" },
-];
+import { getWatchList } from "../utils/watchList";
 
 const SELECT_STYLE = {
   maxWidth: 220,
@@ -38,7 +31,8 @@ const TOOLTIP_STYLE = {
 };
 
 export default function AnalysisPage() {
-  const [stockCode, setStockCode] = useState("0056");
+  const watchList = getWatchList();
+  const [stockCode, setStockCode] = useState(() => watchList[0]?.code ?? "0056");
   const [klineData, setKlineData] = useState([]);
   const [scoreData, setScoreData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -87,7 +81,7 @@ export default function AnalysisPage() {
           value={stockCode}
           onChange={(e) => setStockCode(e.target.value)}
         >
-          {WATCH_LIST.map(({ code, name }) => (
+          {watchList.map(({ code, name }) => (
             <option key={code} value={code} style={{ background: "#0d1b2e" }}>
               {code}　{name}
             </option>

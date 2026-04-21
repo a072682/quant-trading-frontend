@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
 import { runNow } from "../api/signals";
+import { getWatchList } from "../utils/watchList";
 
-const DEFAULT_WATCH_LIST = ["0056", "0050", "2886", "2412", "5880"];
 const DEFAULT_STRATEGY = { buyThreshold: 5, stopLoss: -3, profitTarget: 6 };
 const LS_WATCH = "watchList";
 const LS_STRATEGY = "strategySettings";
@@ -36,22 +36,20 @@ export default function SettingsPage() {
   const navigate = useNavigate();
 
   // ── 監控股票清單 ──────────────────────────────
-  const [watchList, setWatchList] = useState(() =>
-    loadLS(LS_WATCH, DEFAULT_WATCH_LIST)
-  );
+  const [watchList, setWatchList] = useState(() => getWatchList());
   const [newCode, setNewCode] = useState("");
 
   const addStock = () => {
     const code = newCode.trim().toUpperCase();
-    if (!code || watchList.includes(code)) return;
-    const updated = [...watchList, code];
+    if (!code || watchList.some((item) => item.code === code)) return;
+    const updated = [...watchList, { code, name: code }];
     setWatchList(updated);
     localStorage.setItem(LS_WATCH, JSON.stringify(updated));
     setNewCode("");
   };
 
   const removeStock = (code) => {
-    const updated = watchList.filter((c) => c !== code);
+    const updated = watchList.filter((item) => item.code !== code);
     setWatchList(updated);
     localStorage.setItem(LS_WATCH, JSON.stringify(updated));
   };
@@ -120,7 +118,7 @@ export default function SettingsPage() {
         <h6 style={{ color: "#4fc3f7", marginBottom: 16 }}>監控股票清單</h6>
 
         <div className="d-flex flex-wrap gap-2 mb-3">
-          {watchList.map((code) => (
+          {watchList.map(({ code, name }) => (
             <div
               key={code}
               className="d-flex align-items-center gap-2"
@@ -132,6 +130,9 @@ export default function SettingsPage() {
               }}
             >
               <span style={{ color: "#e0f0ff", fontWeight: 600 }}>{code}</span>
+              {name !== code && (
+                <span style={{ color: "#8ab4d4", fontSize: 12 }}>{name}</span>
+              )}
               <button
                 onClick={() => removeStock(code)}
                 style={{
