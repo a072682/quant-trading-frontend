@@ -22,6 +22,7 @@ const mapSignal = (d) => ({
   institutionalScore: d.institutional_score,
   maScore: d.ma_score,
   volumeScore: d.volume_score,
+  yieldScore: d.yield_score ?? 0,
   aiAction: d.ai_action,
   aiReason: d.ai_reason,
 });
