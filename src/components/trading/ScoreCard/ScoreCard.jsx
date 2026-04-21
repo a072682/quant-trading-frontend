@@ -3,7 +3,7 @@ import "./_ScoreCard.scss";
 
 export default function ScoreCard({ signal }) {
   const getStatus = (score) => {
-    if (score >= 4) return { label: "建議買進", cls: "status--buy" };
+    if (score >= 5) return { label: "建議買進", cls: "status--buy" };
     if (score >= 1) return { label: "觀望", cls: "status--watch" };
     return { label: "建議賣出", cls: "status--sell" };
   };
@@ -24,7 +24,7 @@ export default function ScoreCard({ signal }) {
 
       <div className="score-card__score">
         <span className="score-number">{signal.totalScore}</span>
-        <span className="score-label">/ 5 分</span>
+        <span className="score-label">/ 8 分</span>
       </div>
 
       <div className="score-card__params">
@@ -39,6 +39,10 @@ export default function ScoreCard({ signal }) {
         <div className="param-item">
           <span>成交量</span>
           <span>{signal.volumeScore > 0 ? "+" : ""}{signal.volumeScore}</span>
+        </div>
+        <div className="param-item">
+          <span>殖利率</span>
+          <span>{signal.yieldScore > 0 ? "+" : ""}{signal.yieldScore}</span>
         </div>
       </div>
 
