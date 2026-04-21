@@ -30,10 +30,15 @@ const mapPosition = (d) => ({
 });
 
 async function fetchAllSignals(list) {
-  const results = await Promise.all(
+  const results = await Promise.allSettled(
     list.map(({ code }) => getTodaySignals(code))
   );
-  return results.map((res) => mapSignal(res.data.data));
+  return results.map((result, i) => {
+    if (result.status === "fulfilled") {
+      return mapSignal(result.value.data.data);
+    }
+    return { stockCode: list[i].code, stockName: list[i].name, error: true };
+  });
 }
 
 export default function DashboardPage() {
@@ -98,14 +103,36 @@ export default function DashboardPage() {
         <div className="row g-3">
           {watchSignals.map((signal) => (
             <div key={signal.stockCode} className="col-12 col-md-6 col-lg-4">
-              <ScoreCard signal={signal} />
-              {signal.totalScore >= 4 && (
-                <button
-                  className="btn-buy w-100 mt-2"
-                  onClick={() => handleBuyClick(signal)}
+              {signal.error ? (
+                <div
+                  style={{
+                    background: "#0d1b2e",
+                    border: "1px solid #1e3a5f",
+                    borderRadius: 8,
+                    padding: "20px 16px",
+                    textAlign: "center",
+                    color: "#8ab4d4",
+                  }}
                 >
-                  確認買入
-                </button>
+                  <div style={{ fontWeight: 600, color: "#e0f0ff", marginBottom: 6 }}>
+                    {signal.stockCode}
+                  </div>
+                  <div style={{ fontSize: 13 }}>
+                    尚無今日評分，請按重新整理
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <ScoreCard signal={signal} />
+                  {signal.totalScore >= 4 && (
+                    <button
+                      className="btn-buy w-100 mt-2"
+                      onClick={() => handleBuyClick(signal)}
+                    >
+                      確認買入
+                    </button>
+                  )}
+                </>
               )}
             </div>
           ))}
