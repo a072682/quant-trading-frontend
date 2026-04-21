@@ -4,7 +4,9 @@ import { createChart, CandlestickSeries } from "lightweight-charts";
 export default function KLineChart({ data, stockCode }) {
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
+  const seriesRef = useRef(null);
 
+  // 建立圖表（只執行一次）
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
@@ -21,18 +23,18 @@ export default function KLineChart({ data, stockCode }) {
       },
     });
 
-    const candleSeries = chartRef.current.addSeries(CandlestickSeries, {
+    seriesRef.current = chartRef.current.addSeries(CandlestickSeries, {
       upColor: "#26a69a",
       downColor: "#ef5350",
       borderVisible: false,
     });
 
-    candleSeries.setData(data);
-
     const handleResize = () => {
-      chartRef.current.applyOptions({
-        width: chartContainerRef.current.clientWidth,
-      });
+      if (chartRef.current && chartContainerRef.current) {
+        chartRef.current.applyOptions({
+          width: chartContainerRef.current.clientWidth,
+        });
+      }
     };
     window.addEventListener("resize", handleResize);
 
@@ -40,6 +42,25 @@ export default function KLineChart({ data, stockCode }) {
       window.removeEventListener("resize", handleResize);
       chartRef.current.remove();
     };
+  }, []);
+
+  // 資料變更時更新圖表
+  useEffect(() => {
+    if (!seriesRef.current || !data || data.length === 0) return;
+
+    console.log("[KLineChart] 收到 data，筆數：", data.length, "第一筆：", data[0]);
+
+    // 轉換格式，確保欄位名稱符合 lightweight-charts 要求
+    const formatted = data.map((item) => ({
+      time: item.time ?? item.date,
+      open: Number(item.open ?? item.open_price),
+      high: Number(item.high ?? item.high_price),
+      low: Number(item.low ?? item.low_price),
+      close: Number(item.close ?? item.close_price),
+    }));
+
+    console.log("[KLineChart] 格式化後第一筆：", formatted[0]);
+    seriesRef.current.setData(formatted);
   }, [data]);
 
   return (

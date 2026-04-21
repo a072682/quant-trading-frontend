@@ -54,7 +54,9 @@ export default function AnalysisPage() {
           getSignalHistory(stockCode),
         ]);
 
-        setKlineData(klineRes.data.data || []);
+        const kline = klineRes.data.data || [];
+        console.log("[AnalysisPage] klineData 筆數：", kline.length, "第一筆：", kline[0]);
+        setKlineData(kline);
 
         const history = historyRes.data.data || [];
         setScoreData(
