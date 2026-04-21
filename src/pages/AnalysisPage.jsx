@@ -83,7 +83,7 @@ export default function AnalysisPage() {
         >
           {watchList.map(({ code, name }) => (
             <option key={code} value={code} style={{ background: "#0d1b2e" }}>
-              {code}　{name}
+              {code !== name ? `${code}　${name}` : code}
             </option>
           ))}
         </select>
