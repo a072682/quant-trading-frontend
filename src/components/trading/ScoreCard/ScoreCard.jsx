@@ -1,10 +1,12 @@
 import { motion } from "framer-motion";
+import { getStrategySettings } from "../../../utils/strategy";
 import "./_ScoreCard.scss";
 
 export default function ScoreCard({ signal }) {
   const getStatus = (score) => {
-    if (score >= 5) return { label: "建議買進", cls: "status--buy" };
-    if (score >= 1) return { label: "觀望", cls: "status--watch" };
+    const { buyThreshold } = getStrategySettings();
+    if (score >= buyThreshold) return { label: "建議買進", cls: "status--buy" };
+    if (score >= 0) return { label: "觀望", cls: "status--watch" };
     return { label: "建議賣出", cls: "status--sell" };
   };
 

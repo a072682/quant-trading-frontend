@@ -7,6 +7,7 @@ import { open, MODALS } from "../slice/modalSlice";
 import ScoreCard from "../components/trading/ScoreCard/ScoreCard";
 import PositionCard from "../components/trading/PositionCard/PositionCard";
 import { getWatchList } from "../utils/watchList";
+import { getStrategySettings } from "../utils/strategy";
 
 const mapSignal = (d) => ({
   stockCode: d.stock_code,
@@ -127,7 +128,7 @@ export default function DashboardPage() {
               ) : (
                 <>
                   <ScoreCard signal={signal} />
-                  {signal.totalScore >= 4 && (
+                  {signal.totalScore >= getStrategySettings().buyThreshold && (
                     <button
                       className="btn-buy w-100 mt-2"
                       onClick={() => handleBuyClick(signal)}

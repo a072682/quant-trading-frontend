@@ -14,6 +14,7 @@ import { getSignalHistory } from "../api/signals";
 import { getKlineData } from "../api/stocks";
 import KLineChart from "../components/trading/KLineChart/KLineChart";
 import { getWatchList } from "../utils/watchList";
+import { getStrategySettings } from "../utils/strategy";
 
 const SELECT_STYLE = {
   maxWidth: 220,
@@ -129,11 +130,11 @@ export default function AnalysisPage() {
                     <Tooltip {...TOOLTIP_STYLE} />
                     <Legend />
                     <ReferenceLine
-                      y={5}
+                      y={getStrategySettings().buyThreshold}
                       stroke="#ef5350"
                       strokeDasharray="4 4"
                       label={{
-                        value: "買進門檻 +5",
+                        value: `買進門檻 +${getStrategySettings().buyThreshold}`,
                         fill: "#ef5350",
                         fontSize: 11,
                         position: "insideTopRight",
