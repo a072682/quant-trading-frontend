@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { createChart } from "lightweight-charts";
+import { createChart, CandlestickSeries } from "lightweight-charts";
 
 export default function KLineChart({ data, stockCode }) {
   const chartContainerRef = useRef(null);
@@ -21,7 +21,7 @@ export default function KLineChart({ data, stockCode }) {
       },
     });
 
-    const candleSeries = chartRef.current.addCandlestickSeries({
+    const candleSeries = chartRef.current.addSeries(CandlestickSeries, {
       upColor: "#26a69a",
       downColor: "#ef5350",
       borderVisible: false,
