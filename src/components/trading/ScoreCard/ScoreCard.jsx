@@ -46,6 +46,10 @@ export default function ScoreCard({ signal }) {
           <span>殖利率</span>
           <span>{signal.yieldScore > 0 ? "+" : ""}{signal.yieldScore}</span>
         </div>
+        <div className="param-item">
+          <span>期貨</span>
+          <span>{(signal.futuresScore ?? 0) > 0 ? "+" : ""}{signal.futuresScore ?? 0}</span>
+        </div>
       </div>
 
       <div className="score-card__action">
