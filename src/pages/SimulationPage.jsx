@@ -4,6 +4,7 @@ import {
   getSimulationTrades,
   getSimulationSummary,
 } from "../api/simulation";
+import { getStockName } from "../utils/watchList";
 
 const cardStyle = {
   background: "#0d1b2e",
@@ -91,12 +92,10 @@ export default function SimulationPage() {
     );
   }
 
-  const totalPnl = summary?.total_pnl ?? summary?.totalPnl ?? null;
-  const winRate = summary?.win_rate ?? summary?.winRate ?? null;
-  const totalTrades =
-    summary?.total_trades ?? summary?.totalTrades ?? trades.length;
-  const openPositions =
-    summary?.open_positions ?? summary?.openPositions ?? positions.length;
+  const totalPnl = summary?.total_profit ?? summary?.total_pnl ?? null;
+  const winRate = summary?.win_rate ?? null;
+  const totalTrades = summary?.total_trades ?? trades.length;
+  const openPositions = summary?.open_positions ?? positions.length;
 
   return (
     <div className="container-fluid py-4">
@@ -108,9 +107,9 @@ export default function SimulationPage() {
           label="總損益（元）"
           value={
             totalPnl !== null ? (
-              <span style={{ color: totalPnl >= 0 ? "#26a69a" : "#ef5350" }}>
-                {totalPnl >= 0 ? "+" : ""}
-                {Number(totalPnl).toLocaleString()}
+              <span style={{ color: totalPnl > 0 ? "#26a69a" : totalPnl < 0 ? "#ef5350" : "#e0f0ff" }}>
+                {totalPnl > 0 ? "+" : ""}
+                {Number(totalPnl).toLocaleString()} 元
               </span>
             ) : (
               "—"
@@ -146,28 +145,32 @@ export default function SimulationPage() {
               </tr>
             </thead>
             <tbody>
-              {positions.map((pos, idx) => (
+              {positions.map((pos, idx) => {
+                const code = pos.stock_code ?? "—";
+                const buyDate =
+                  pos.buy_date ??
+                  (pos.created_at ? pos.created_at.slice(0, 10) : null) ??
+                  pos.date ??
+                  "—";
+                const buyAmount = pos.total_amount ?? pos.buy_amount ?? null;
+                return (
                 <tr key={pos.id ?? pos.stock_code ?? idx}>
-                  <td style={tableCellStyle}>
-                    {pos.stock_code ?? pos.stockCode ?? "—"}
-                  </td>
-                  <td style={tableCellStyle}>
-                    {pos.stock_name ?? pos.stockName ?? "—"}
-                  </td>
-                  <td style={tableCellStyle}>
-                    {pos.buy_date ?? pos.buyDate ?? "—"}
-                  </td>
+                  <td style={tableCellStyle}>{code}</td>
+                  <td style={tableCellStyle}>{getStockName(code)}</td>
+                  <td style={tableCellStyle}>{buyDate}</td>
                   <td style={tableCellStyle}>
                     {pos.buy_price != null
-                      ? Number(pos.buy_price ?? pos.buyPrice).toLocaleString()
+                      ? Number(pos.buy_price).toLocaleString()
+                      : pos.price != null
+                      ? Number(pos.price).toLocaleString()
                       : "—"}
                   </td>
                   <td style={tableCellStyle}>
                     {pos.shares ?? pos.quantity ?? "—"}
                   </td>
                   <td style={tableCellStyle}>
-                    {pos.buy_amount != null
-                      ? Number(pos.buy_amount ?? pos.buyAmount).toLocaleString()
+                    {buyAmount != null
+                      ? `${Number(buyAmount).toLocaleString()} 元`
                       : "—"}
                   </td>
                   <td style={tableCellStyle}>
@@ -185,7 +188,8 @@ export default function SimulationPage() {
                     </span>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         )}
@@ -211,27 +215,29 @@ export default function SimulationPage() {
             </thead>
             <tbody>
               {trades.map((trade, idx) => {
-                const pnl = trade.pnl ?? trade.profit_loss ?? null;
-                const pnlPct =
-                  trade.pnl_pct ?? trade.profit_loss_pct ?? null;
+                const pnl = trade.profit ?? null;
+                const pnlPct = trade.profit_pct ?? null;
                 const isProfit = pnl !== null && Number(pnl) >= 0;
-                const pnlColor = pnl === null ? "#8ab4d4" : isProfit ? "#26a69a" : "#ef5350";
-                const action = trade.action ?? trade.trade_type ?? "—";
+                const pnlColor =
+                  pnl === null ? "#8ab4d4" : isProfit ? "#26a69a" : "#ef5350";
+                const action = trade.action ?? "—";
                 const isBuy =
-                  action === "buy" ||
-                  action === "買進" ||
-                  action === "BUY";
+                  action === "buy" || action === "買進" || action === "BUY";
+                const tradeCode = trade.stock_code ?? "—";
+                const tradeAmount = trade.total_amount ?? trade.amount ?? null;
+                const tradeDate =
+                  trade.date ??
+                  (trade.created_at ? trade.created_at.slice(0, 10) : null) ??
+                  "—";
 
                 return (
                   <tr key={trade.id ?? idx}>
-                    <td style={tableCellStyle}>{trade.date ?? trade.trade_date ?? "—"}</td>
+                    <td style={tableCellStyle}>{tradeDate}</td>
                     <td style={tableCellStyle}>
-                      {trade.stock_code ?? trade.stockCode ?? "—"}
-                      {(trade.stock_name ?? trade.stockName) && (
-                        <span style={{ color: "#8ab4d4", marginLeft: 4 }}>
-                          {trade.stock_name ?? trade.stockName}
-                        </span>
-                      )}
+                      {tradeCode}
+                      <span style={{ color: "#8ab4d4", marginLeft: 4 }}>
+                        {getStockName(tradeCode)}
+                      </span>
                     </td>
                     <td style={tableCellStyle}>
                       <span
@@ -256,18 +262,18 @@ export default function SimulationPage() {
                       {trade.shares ?? trade.quantity ?? "—"}
                     </td>
                     <td style={tableCellStyle}>
-                      {trade.amount != null
-                        ? Number(trade.amount).toLocaleString()
+                      {tradeAmount != null
+                        ? `${Number(tradeAmount).toLocaleString()} 元`
                         : "—"}
                     </td>
                     <td style={{ ...tableCellStyle, color: pnlColor }}>
                       {pnl !== null
-                        ? `${Number(pnl) >= 0 ? "+" : ""}${Number(pnl).toLocaleString()}`
+                        ? `${Number(pnl) > 0 ? "+" : ""}${Number(pnl).toLocaleString()}`
                         : "—"}
                     </td>
                     <td style={{ ...tableCellStyle, color: pnlColor }}>
                       {pnlPct !== null
-                        ? `${Number(pnlPct) >= 0 ? "+" : ""}${Number(pnlPct).toFixed(2)}%`
+                        ? `${Number(pnlPct) > 0 ? "+" : ""}${Number(pnlPct).toFixed(2)}%`
                         : "—"}
                     </td>
                     <td style={tableCellStyle}>
