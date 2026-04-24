@@ -5,6 +5,7 @@ import DashboardPage from "../pages/DashboardPage";
 import AnalysisPage from "../pages/AnalysisPage";
 import HistoryPage from "../pages/HistoryPage";
 import SettingsPage from "../pages/SettingsPage";
+import SimulationPage from "../pages/SimulationPage";
 import LoginPage from "../pages/LoginPage";
 import NotFound from "../pages/NotFound";
 
@@ -21,6 +22,7 @@ const router = createBrowserRouter([
           { path: "analysis", element: <AnalysisPage /> },
           { path: "history", element: <HistoryPage /> },
           { path: "settings", element: <SettingsPage /> },
+          { path: "simulation", element: <SimulationPage /> },
           { path: "*", element: <NotFound /> },
         ],
       },

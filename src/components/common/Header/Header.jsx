@@ -26,6 +26,7 @@ export default function Header() {
             <Nav.Link as={NavLink} to="/">儀表板</Nav.Link>
             <Nav.Link as={NavLink} to="/analysis">K線分析</Nav.Link>
             <Nav.Link as={NavLink} to="/history">歷史紀錄</Nav.Link>
+            <Nav.Link as={NavLink} to="/simulation">模擬交易</Nav.Link>
             <Nav.Link as={NavLink} to="/settings">設定</Nav.Link>
           </Nav>
         </Navbar.Collapse>
