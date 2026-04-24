@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { getTodaySignals, runNow, runStock, getTopSignals, getTodayAllSignals } from "../api/signals";
+import { runNowWithStocks, getTopSignals, getTodayAllSignals } from "../api/signals";
 import { getPositions } from "../api/positions";
 import { setPositions } from "../slice/positionSlice";
 import { open, MODALS } from "../slice/modalSlice";
@@ -30,18 +30,6 @@ const mapPosition = (d) => ({
   currentPrice: d.current_price,
   unrealizedProfit: d.unrealized_profit,
 });
-
-async function fetchAllSignals(list) {
-  const results = await Promise.allSettled(
-    list.map(({ code }) => getTodaySignals(code))
-  );
-  return results.map((result, i) => {
-    if (result.status === "fulfilled") {
-      return mapSignal(result.value.data.data);
-    }
-    return { stockCode: list[i].code, stockName: list[i].name, error: true };
-  });
-}
 
 // Tab 樣式
 const TAB_BASE = {
@@ -110,12 +98,8 @@ export default function DashboardPage() {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      // 先觸發重新計算
-      await runNow().catch(() => {});
-      // 也對監控清單個別計算
-      const list = getWatchList();
-      await Promise.allSettled(list.map(({ code, name }) => runStock(code, name)));
-      // 重新取得兩個 Tab 的資料
+      const watchList = getWatchList();
+      await runNowWithStocks(watchList).catch(() => {});
       await loadData();
     } finally {
       setIsRefreshing(false);
@@ -177,7 +161,7 @@ export default function DashboardPage() {
             onClick={handleRefresh}
             disabled={isRefreshing}
           >
-            {isRefreshing ? "計算中..." : "重新整理"}
+            {isRefreshing ? "計算中...（監控清單）" : "重新整理"}
           </button>
         </div>
 

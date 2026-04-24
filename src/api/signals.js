@@ -6,6 +6,9 @@ export const getTodaySignals = (stockCode = "0056") =>
 export const runNow = () =>
   api.post("/api/v1/signals/run-now");
 
+export const runNowWithStocks = (stocks) =>
+  api.post("/api/v1/signals/run-now", { stocks });
+
 export const runStock = (stockCode, stockName) =>
   api.post("/api/v1/signals/run-stock", { stock_code: stockCode, stock_name: stockName });
 
