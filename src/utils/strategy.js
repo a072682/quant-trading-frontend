@@ -1,5 +1,5 @@
 const DEFAULT_SETTINGS = {
-  buyThreshold: 5,
+  buyThreshold: 6,
   stopLoss: -3,
   takeProfit: 6,
 };

@@ -26,7 +26,7 @@ export default function ScoreCard({ signal }) {
 
       <div className="score-card__score">
         <span className="score-number">{signal.totalScore}</span>
-        <span className="score-label">/ 8 分</span>
+        <span className="score-label">/ 11 分</span>
       </div>
 
       <div className="score-card__params">
