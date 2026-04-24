@@ -106,10 +106,21 @@ export default function SettingsPage() {
   };
 
   // ── 股票池管理 ────────────────────────────────
-  const [poolInfo, setPoolInfo] = useState(null);
+  // 後端 getStockPool() 回傳陣列，拆成三個獨立 state 避免巢狀存取錯誤
+  const [stockPool, setStockPool] = useState([]);
+  const [poolCount, setPoolCount] = useState(null);
+  const [poolLastUpdated, setPoolLastUpdated] = useState(null);
   const [isFiltering, setIsFiltering] = useState(false);
   const [filterMsg, setFilterMsg] = useState("");
   const [showPool, setShowPool] = useState(false);
+
+  const applyPoolData = (raw) => {
+    console.log("getStockPool() 回傳：", raw);
+    const arr = Array.isArray(raw) ? raw : [];
+    setStockPool(arr);
+    setPoolCount(arr.length);
+    setPoolLastUpdated(arr[0]?.updated_at ?? null);
+  };
 
   const applyFilterStatus = (status, stock_count, error_message) => {
     if (status === "running") {
@@ -135,7 +146,7 @@ export default function SettingsPage() {
     const init = async () => {
       try {
         const poolRes = await getStockPool();
-        setPoolInfo(poolRes.data?.data ?? poolRes.data ?? null);
+        applyPoolData(poolRes.data?.data ?? poolRes.data);
       } catch {}
 
       try {
@@ -157,11 +168,11 @@ export default function SettingsPage() {
         const d = res.data?.data ?? res.data ?? {};
         if (d.status === "running") return; // 繼續等待
 
-        // completed 或 failed → 更新股票池資料再結束輪詢
+        // completed → 重新取得最新股票池
         if (d.status === "completed") {
           try {
             const poolRes = await getStockPool();
-            setPoolInfo(poolRes.data?.data ?? poolRes.data ?? null);
+            applyPoolData(poolRes.data?.data ?? poolRes.data);
           } catch {}
         }
         applyFilterStatus(d.status, d.stock_count, d.error_message);
@@ -174,11 +185,11 @@ export default function SettingsPage() {
     return () => clearInterval(timer);
   }, [isFiltering]);
 
-  const handleFilter = async () => {
+  const handleFilter = () => {
     setIsFiltering(true);
     setFilterMsg("");
     localStorage.setItem(LS_FILTERING, "true");
-    // 發送篩選請求（fire-and-forget：狀態以 status API 為準）
+    // fire-and-forget：實際狀態以 status API 輪詢為準
     runStockFilter().catch(() => {});
   };
 
@@ -351,13 +362,13 @@ export default function SettingsPage() {
           <div>
             上次篩選時間：
             <span style={{ color: "#e0f0ff" }}>
-              {poolInfo?.last_filter_at ?? poolInfo?.lastFilterAt ?? "—"}
+              {poolLastUpdated ?? "—"}
             </span>
           </div>
           <div>
             目前股票池數量：
             <span style={{ color: "#e0f0ff" }}>
-              {poolInfo?.count ?? poolInfo?.total ?? (Array.isArray(poolInfo?.stocks) ? poolInfo.stocks.length : "—")} 檔
+              {poolCount !== null ? `${poolCount} 檔` : "—"}
             </span>
           </div>
         </div>
@@ -383,7 +394,11 @@ export default function SettingsPage() {
           <div
             style={{
               fontSize: 13,
-              color: filterMsg.includes("完成") ? "#26a69a" : "#ef5350",
+              color: filterMsg.includes("完成")
+                ? "#26a69a"
+                : filterMsg.includes("進行中")
+                ? "#4fc3f7"
+                : "#ef5350",
               marginBottom: 8,
             }}
           >
@@ -393,7 +408,7 @@ export default function SettingsPage() {
 
         {showPool && (
           <div style={{ overflowX: "auto", marginTop: 8 }}>
-            {!poolInfo?.stocks?.length ? (
+            {stockPool.length === 0 ? (
               <p style={{ color: "#8ab4d4", fontSize: 13 }}>目前無股票池資料</p>
             ) : (
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
@@ -417,16 +432,16 @@ export default function SettingsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {poolInfo.stocks.map((s, idx) => (
-                    <tr key={s.stock_code ?? s.code ?? idx}>
+                  {stockPool.map((s, idx) => (
+                    <tr key={s.stock_code ?? idx}>
                       <td style={{ color: "#e0f0ff", padding: "6px 12px", borderBottom: "1px solid #12243a" }}>
-                        {s.stock_code ?? s.code ?? "—"}
+                        {s.stock_code ?? "—"}
                       </td>
                       <td style={{ color: "#c8dff0", padding: "6px 12px", borderBottom: "1px solid #12243a" }}>
-                        {s.stock_name ?? s.name ?? getStockName(s.stock_code ?? s.code) ?? "—"}
+                        {s.stock_name ?? getStockName(s.stock_code) ?? "—"}
                       </td>
                       <td style={{ color: "#c8dff0", padding: "6px 12px", borderBottom: "1px solid #12243a" }}>
-                        {s.dividend_yield != null ? `${Number(s.dividend_yield).toFixed(2)}%` : "—"}
+                        {s.yield_pct != null ? `${Number(s.yield_pct).toFixed(2)}%` : "—"}
                       </td>
                       <td style={{ color: "#c8dff0", padding: "6px 12px", borderBottom: "1px solid #12243a" }}>
                         {s.market_cap != null ? Number(s.market_cap).toLocaleString() : "—"}
