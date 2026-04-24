@@ -7,6 +7,9 @@ export const getKlineData = (stockCode) =>
 export const getStockPool = () =>
   api.get("/api/v1/stocks/pool");
 
+export const getFilterStatus = () =>
+  api.get("/api/v1/stocks/status");
+
 export const runStockFilter = () =>
   axios.post(
     `${import.meta.env.VITE_API_BASE_URL}/api/v1/stocks/filter`,

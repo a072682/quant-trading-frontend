@@ -1,15 +1,14 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
 import { runNow } from "../api/signals";
-import { getStockPool, runStockFilter } from "../api/stocks";
+import { getStockPool, getFilterStatus, runStockFilter } from "../api/stocks";
 import { getWatchList, getStockName } from "../utils/watchList";
 
 const DEFAULT_STRATEGY = { buyThreshold: 5, stopLoss: -3, profitTarget: 6 };
 const LS_WATCH = "watchList";
 const LS_STRATEGY = "strategySettings";
 const LS_FILTERING = "isFiltering";
-const LS_FILTER_START_AT = "filterStartAt";
 
 const CARD_STYLE = {
   background: "#0d1b2e",
@@ -108,89 +107,79 @@ export default function SettingsPage() {
 
   // ── 股票池管理 ────────────────────────────────
   const [poolInfo, setPoolInfo] = useState(null);
-  const [isFiltering, setIsFiltering] = useState(
-    localStorage.getItem(LS_FILTERING) === "true"
-  );
-  const [filterMsg, setFilterMsg] = useState(
-    localStorage.getItem(LS_FILTERING) === "true" ? "篩選進行中，請稍候..." : ""
-  );
+  const [isFiltering, setIsFiltering] = useState(false);
+  const [filterMsg, setFilterMsg] = useState("");
   const [showPool, setShowPool] = useState(false);
-  // 用 ref 標記當前 session 是否有正在等待的 runStockFilter 請求，
-  // 避免頁面回到設定時重複發送篩選請求
-  const filterRequestActiveRef = useRef(false);
 
+  const applyFilterStatus = (status, stock_count, error_message) => {
+    if (status === "running") {
+      setIsFiltering(true);
+      setFilterMsg("篩選進行中，請稍候...");
+      localStorage.setItem(LS_FILTERING, "true");
+    } else if (status === "completed") {
+      setIsFiltering(false);
+      setFilterMsg(`篩選完成，共 ${stock_count ?? "未知"} 檔股票`);
+      localStorage.removeItem(LS_FILTERING);
+    } else if (status === "failed") {
+      setIsFiltering(false);
+      setFilterMsg(`篩選失敗：${error_message ?? "未知錯誤"}`);
+      localStorage.removeItem(LS_FILTERING);
+    } else {
+      // idle：清除可能殘留的舊旗標
+      localStorage.removeItem(LS_FILTERING);
+    }
+  };
+
+  // 頁面載入：取得股票池資料 + 以後端 status 為準決定初始狀態
   useEffect(() => {
-    const fetchPool = async () => {
+    const init = async () => {
       try {
-        const res = await getStockPool();
-        const data = res.data?.data ?? res.data ?? null;
-        setPoolInfo(data);
-      } catch {
-        // 無法取得股票池不影響其他功能
-      }
+        const poolRes = await getStockPool();
+        setPoolInfo(poolRes.data?.data ?? poolRes.data ?? null);
+      } catch {}
+
+      try {
+        const statusRes = await getFilterStatus();
+        const d = statusRes.data?.data ?? statusRes.data ?? {};
+        applyFilterStatus(d.status, d.stock_count, d.error_message);
+      } catch {}
     };
-    fetchPool();
+    init();
   }, []);
 
-  // 輪詢：只在「從 localStorage 恢復的篩選狀態」下執行，
-  // 若當前 session 已有直接請求（filterRequestActiveRef），跳過輪詢
+  // 輪詢：isFiltering=true 時每 30 秒查詢一次後端狀態
   useEffect(() => {
-    if (!isFiltering || filterRequestActiveRef.current) return;
-
-    const filterStartAt = localStorage.getItem(LS_FILTER_START_AT) ?? "";
+    if (!isFiltering) return;
 
     const poll = async () => {
       try {
-        const res = await getStockPool();
-        const data = res.data?.data ?? res.data ?? null;
-        if (!data) return;
+        const res = await getFilterStatus();
+        const d = res.data?.data ?? res.data ?? {};
+        if (d.status === "running") return; // 繼續等待
 
-        const newLastFilterAt = data.last_filter_at ?? data.lastFilterAt ?? "";
-        // last_filter_at 更新代表後端已完成本次篩選
-        if (newLastFilterAt && newLastFilterAt !== filterStartAt) {
-          setPoolInfo(data);
-          const count =
-            data.count ?? data.total ??
-            (Array.isArray(data.stocks) ? data.stocks.length : "未知");
-          setFilterMsg(`篩選完成，共 ${count} 檔股票`);
-          localStorage.removeItem(LS_FILTERING);
-          localStorage.removeItem(LS_FILTER_START_AT);
-          setIsFiltering(false);
+        // completed 或 failed → 更新股票池資料再結束輪詢
+        if (d.status === "completed") {
+          try {
+            const poolRes = await getStockPool();
+            setPoolInfo(poolRes.data?.data ?? poolRes.data ?? null);
+          } catch {}
         }
+        applyFilterStatus(d.status, d.stock_count, d.error_message);
       } catch {
         // 輪詢失敗靜默忽略，下次繼續
       }
     };
 
-    poll(); // 立即輪詢一次（可能篩選已在切頁期間完成）
     const timer = setInterval(poll, 30000);
     return () => clearInterval(timer);
   }, [isFiltering]);
 
   const handleFilter = async () => {
-    const startAt =
-      poolInfo?.last_filter_at ?? poolInfo?.lastFilterAt ?? "";
-    localStorage.setItem(LS_FILTERING, "true");
-    localStorage.setItem(LS_FILTER_START_AT, startAt);
-    filterRequestActiveRef.current = true;
     setIsFiltering(true);
     setFilterMsg("");
-    try {
-      const res = await runStockFilter();
-      const data = res.data?.data ?? res.data ?? null;
-      if (data) setPoolInfo(data);
-      const count = data?.count ?? data?.total ?? "未知";
-      setFilterMsg(`篩選完成，共 ${count} 檔股票`);
-      localStorage.removeItem(LS_FILTERING);
-      localStorage.removeItem(LS_FILTER_START_AT);
-    } catch (err) {
-      setFilterMsg(err.response?.data?.message || "篩選失敗，請稍後再試");
-      localStorage.removeItem(LS_FILTERING);
-      localStorage.removeItem(LS_FILTER_START_AT);
-    } finally {
-      filterRequestActiveRef.current = false;
-      setIsFiltering(false);
-    }
+    localStorage.setItem(LS_FILTERING, "true");
+    // 發送篩選請求（fire-and-forget：狀態以 status API 為準）
+    runStockFilter().catch(() => {});
   };
 
   // ── 登出 ──────────────────────────────────────
