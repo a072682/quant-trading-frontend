@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { getTodaySignals, runStock } from "../api/signals";
+import { getTodaySignals, runNow, runStock, getTopSignals, getTodayAllSignals } from "../api/signals";
 import { getPositions } from "../api/positions";
 import { setPositions } from "../slice/positionSlice";
 import { open, MODALS } from "../slice/modalSlice";
@@ -43,42 +43,80 @@ async function fetchAllSignals(list) {
   });
 }
 
+// Tab 樣式
+const TAB_BASE = {
+  background: "none",
+  border: "none",
+  cursor: "pointer",
+  padding: "8px 20px",
+  fontSize: 14,
+  fontWeight: 600,
+  transition: "color 0.15s, border-color 0.15s",
+};
+
+const tabStyle = (active) => ({
+  ...TAB_BASE,
+  color: active ? "#4fc3f7" : "#4a6a8a",
+  borderBottom: active ? "2px solid #4fc3f7" : "2px solid transparent",
+});
+
 export default function DashboardPage() {
   const dispatch = useDispatch();
   const positions = useSelector((state) => state.position.list);
-  const [watchSignals, setWatchSignals] = useState([]);
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  useEffect(() => {
-    const init = async () => {
-      try {
-        const [signals, posRes] = await Promise.all([
-          fetchAllSignals(getWatchList()),
-          getPositions(),
-        ]);
-        setWatchSignals(signals);
-        const posList = Array.isArray(posRes.data.data)
-          ? posRes.data.data.map(mapPosition)
+  const [activeTab, setActiveTab] = useState("top"); // "top" | "all"
+  const [topSignals, setTopSignals] = useState([]);
+  const [allSignals, setAllSignals] = useState([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [topRes, allRes, posRes] = await Promise.allSettled([
+        getTopSignals(10, 6),
+        getTodayAllSignals(),
+        getPositions(),
+      ]);
+
+      if (topRes.status === "fulfilled") {
+        const raw = topRes.value.data?.data ?? topRes.value.data ?? [];
+        setTopSignals(Array.isArray(raw) ? raw.map(mapSignal) : []);
+      }
+
+      if (allRes.status === "fulfilled") {
+        const raw = allRes.value.data?.data ?? allRes.value.data ?? [];
+        const sorted = Array.isArray(raw)
+          ? [...raw].sort((a, b) => (b.total_score ?? 0) - (a.total_score ?? 0))
+          : [];
+        setAllSignals(sorted.map(mapSignal));
+      }
+
+      if (posRes.status === "fulfilled") {
+        const posList = Array.isArray(posRes.value.data?.data)
+          ? posRes.value.data.data.map(mapPosition)
           : [];
         dispatch(setPositions(posList));
-      } catch (err) {
-        console.error("資料載入失敗", err);
       }
-    };
-    init();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
   }, []);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
+      // 先觸發重新計算
+      await runNow().catch(() => {});
+      // 也對監控清單個別計算
       const list = getWatchList();
-      await Promise.allSettled(
-        list.map(({ code, name }) => runStock(code, name))
-      );
-      const signals = await fetchAllSignals(list);
-      setWatchSignals(signals);
-    } catch (err) {
-      console.error("重新整理失敗", err);
+      await Promise.allSettled(list.map(({ code, name }) => runStock(code, name)));
+      // 重新取得兩個 Tab 的資料
+      await loadData();
     } finally {
       setIsRefreshing(false);
     }
@@ -92,10 +130,47 @@ export default function DashboardPage() {
     dispatch(open({ modal: MODALS.CONFIRM_SELL, data: position }));
   };
 
+  const { buyThreshold } = getStrategySettings();
+
+  const renderSignalCard = (signal) => (
+    <div key={signal.stockCode} className="col-12 col-md-6 col-lg-4">
+      {signal.error ? (
+        <div
+          style={{
+            background: "#0d1b2e",
+            border: "1px solid #1e3a5f",
+            borderRadius: 8,
+            padding: "20px 16px",
+            textAlign: "center",
+            color: "#8ab4d4",
+          }}
+        >
+          <div style={{ fontWeight: 600, color: "#e0f0ff", marginBottom: 6 }}>
+            {signal.stockCode}
+          </div>
+          <div style={{ fontSize: 13 }}>尚無今日評分，請按重新整理</div>
+        </div>
+      ) : (
+        <>
+          <ScoreCard signal={signal} />
+          {signal.totalScore >= buyThreshold && (
+            <button
+              className="btn-buy w-100 mt-2"
+              onClick={() => handleBuyClick(signal)}
+            >
+              確認買入
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  );
+
   return (
     <div className="container-fluid py-4">
       <section className="mb-4">
-        <div className="d-flex align-items-center gap-3 mb-3">
+        {/* 標題列 */}
+        <div className="d-flex align-items-center gap-3 mb-0">
           <h5 className="section-title mb-0">今日訊號</h5>
           <button
             className="btn btn-sm btn-outline-secondary"
@@ -105,43 +180,59 @@ export default function DashboardPage() {
             {isRefreshing ? "計算中..." : "重新整理"}
           </button>
         </div>
-        <div className="row g-3">
-          {watchSignals.map((signal) => (
-            <div key={signal.stockCode} className="col-12 col-md-6 col-lg-4">
-              {signal.error ? (
-                <div
-                  style={{
-                    background: "#0d1b2e",
-                    border: "1px solid #1e3a5f",
-                    borderRadius: 8,
-                    padding: "20px 16px",
-                    textAlign: "center",
-                    color: "#8ab4d4",
-                  }}
-                >
-                  <div style={{ fontWeight: 600, color: "#e0f0ff", marginBottom: 6 }}>
-                    {signal.stockCode}
-                  </div>
-                  <div style={{ fontSize: 13 }}>
-                    尚無今日評分，請按重新整理
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <ScoreCard signal={signal} />
-                  {signal.totalScore >= getStrategySettings().buyThreshold && (
-                    <button
-                      className="btn-buy w-100 mt-2"
-                      onClick={() => handleBuyClick(signal)}
-                    >
-                      確認買入
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
-          ))}
+
+        {/* Tab 列 */}
+        <div
+          style={{
+            display: "flex",
+            borderBottom: "1px solid #1e3a5f",
+            marginBottom: 20,
+            marginTop: 12,
+          }}
+        >
+          <button style={tabStyle(activeTab === "top")} onClick={() => setActiveTab("top")}>
+            今日推薦
+          </button>
+          <button style={tabStyle(activeTab === "all")} onClick={() => setActiveTab("all")}>
+            全部評分
+          </button>
         </div>
+
+        {/* Tab 內容 */}
+        {loading ? (
+          <p className="text-info">載入中...</p>
+        ) : activeTab === "top" ? (
+          topSignals.length === 0 ? (
+            <div
+              style={{
+                background: "#0d1b2e",
+                border: "1px solid #1e3a5f",
+                borderRadius: 8,
+                padding: "32px 24px",
+                textAlign: "center",
+                color: "#8ab4d4",
+                fontSize: 14,
+              }}
+            >
+              今日無推薦，市場整體偏空，建議觀望
+            </div>
+          ) : (
+            <div className="row g-3">
+              {topSignals.map(renderSignalCard)}
+            </div>
+          )
+        ) : (
+          <div
+            className="row g-3"
+            style={{ maxHeight: "70vh", overflowY: "auto", paddingRight: 4 }}
+          >
+            {allSignals.length === 0 ? (
+              <p className="text-secondary">今日尚無任何評分資料</p>
+            ) : (
+              allSignals.map(renderSignalCard)
+            )}
+          </div>
+        )}
       </section>
 
       <section className="mb-4">
