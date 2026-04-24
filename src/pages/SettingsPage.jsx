@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
 import { runNow } from "../api/signals";
+import { getStockPool, runStockFilter } from "../api/stocks";
 import { getWatchList, getStockName } from "../utils/watchList";
 
 const DEFAULT_STRATEGY = { buyThreshold: 5, stopLoss: -3, profitTarget: 6 };
@@ -100,6 +101,41 @@ export default function SettingsPage() {
     } catch (err) {
       setRunStatus("error");
       setRunMsg(err.response?.data?.message || "執行失敗，請稍後再試");
+    }
+  };
+
+  // ── 股票池管理 ────────────────────────────────
+  const [poolInfo, setPoolInfo] = useState(null); // { lastFilterAt, count, stocks[] }
+  const [isFiltering, setIsFiltering] = useState(false);
+  const [filterMsg, setFilterMsg] = useState("");
+  const [showPool, setShowPool] = useState(false);
+
+  useEffect(() => {
+    const fetchPool = async () => {
+      try {
+        const res = await getStockPool();
+        const data = res.data?.data ?? res.data ?? null;
+        setPoolInfo(data);
+      } catch {
+        // 無法取得股票池不影響其他功能
+      }
+    };
+    fetchPool();
+  }, []);
+
+  const handleFilter = async () => {
+    setIsFiltering(true);
+    setFilterMsg("");
+    try {
+      const res = await runStockFilter();
+      const data = res.data?.data ?? res.data ?? null;
+      if (data) setPoolInfo(data);
+      const count = data?.count ?? data?.total ?? "未知";
+      setFilterMsg(`篩選完成，共 ${count} 檔股票`);
+    } catch (err) {
+      setFilterMsg(err.response?.data?.message || "篩選失敗，請稍後再試");
+    } finally {
+      setIsFiltering(false);
     }
   };
 
@@ -261,6 +297,103 @@ export default function SettingsPage() {
               <span style={{ color: "#e0f0ff" }}>{sysInfo.recordCount ?? "—"}</span>
             </div>
           </>
+        )}
+      </div>
+
+      {/* ── 股票池管理 ── */}
+      <div style={CARD_STYLE}>
+        <h6 style={{ color: "#4fc3f7", marginBottom: 4 }}>股票池管理</h6>
+
+        <div style={{ color: "#8ab4d4", fontSize: 13, marginBottom: 12 }}>
+          <div>
+            上次篩選時間：
+            <span style={{ color: "#e0f0ff" }}>
+              {poolInfo?.last_filter_at ?? poolInfo?.lastFilterAt ?? "—"}
+            </span>
+          </div>
+          <div>
+            目前股票池數量：
+            <span style={{ color: "#e0f0ff" }}>
+              {poolInfo?.count ?? poolInfo?.total ?? (Array.isArray(poolInfo?.stocks) ? poolInfo.stocks.length : "—")} 檔
+            </span>
+          </div>
+        </div>
+
+        <div className="d-flex gap-2 flex-wrap mb-2">
+          <button
+            className="btn btn-outline-warning btn-sm"
+            onClick={handleFilter}
+            disabled={isFiltering}
+            style={{ opacity: isFiltering ? 0.6 : 1 }}
+          >
+            {isFiltering ? "篩選中，約需 5~10 分鐘..." : "開始篩選"}
+          </button>
+          <button
+            className="btn btn-outline-secondary btn-sm"
+            onClick={() => setShowPool((v) => !v)}
+          >
+            {showPool ? "收合股票池" : "查看股票池"}
+          </button>
+        </div>
+
+        {filterMsg && (
+          <div
+            style={{
+              fontSize: 13,
+              color: filterMsg.includes("完成") ? "#26a69a" : "#ef5350",
+              marginBottom: 8,
+            }}
+          >
+            {filterMsg}
+          </div>
+        )}
+
+        {showPool && (
+          <div style={{ overflowX: "auto", marginTop: 8 }}>
+            {!poolInfo?.stocks?.length ? (
+              <p style={{ color: "#8ab4d4", fontSize: 13 }}>目前無股票池資料</p>
+            ) : (
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr>
+                    {["股票代號", "股票名稱", "殖利率", "市值"].map((col) => (
+                      <th
+                        key={col}
+                        style={{
+                          background: "#0a1520",
+                          color: "#8ab4d4",
+                          padding: "6px 12px",
+                          borderBottom: "1px solid #1e3a5f",
+                          textAlign: "left",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {col}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {poolInfo.stocks.map((s, idx) => (
+                    <tr key={s.stock_code ?? s.code ?? idx}>
+                      <td style={{ color: "#e0f0ff", padding: "6px 12px", borderBottom: "1px solid #12243a" }}>
+                        {s.stock_code ?? s.code ?? "—"}
+                      </td>
+                      <td style={{ color: "#c8dff0", padding: "6px 12px", borderBottom: "1px solid #12243a" }}>
+                        {s.stock_name ?? s.name ?? getStockName(s.stock_code ?? s.code) ?? "—"}
+                      </td>
+                      <td style={{ color: "#c8dff0", padding: "6px 12px", borderBottom: "1px solid #12243a" }}>
+                        {s.dividend_yield != null ? `${Number(s.dividend_yield).toFixed(2)}%` : "—"}
+                      </td>
+                      <td style={{ color: "#c8dff0", padding: "6px 12px", borderBottom: "1px solid #12243a" }}>
+                        {s.market_cap != null ? Number(s.market_cap).toLocaleString() : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
         )}
       </div>
 
