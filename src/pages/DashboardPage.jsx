@@ -62,7 +62,7 @@ export default function DashboardPage() {
     setLoading(true);
     try {
       const [topRes, allRes, posRes] = await Promise.allSettled([
-        getTopSignals(10, 6),
+        getTopSignals(3, 6),
         getTodayAllSignals(),
         getPositions(),
       ]);
@@ -175,7 +175,7 @@ export default function DashboardPage() {
           }}
         >
           <button style={tabStyle(activeTab === "top")} onClick={() => setActiveTab("top")}>
-            今日推薦
+            今日推薦（最多3檔，已排除持倉中的股票）
           </button>
           <button style={tabStyle(activeTab === "all")} onClick={() => setActiveTab("all")}>
             全部評分
