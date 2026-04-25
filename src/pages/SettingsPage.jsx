@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
-import { runNow } from "../api/signals";
+import { runFull } from "../api/signals";
 import { getStockPool, getFilterStatus, runStockFilter } from "../api/stocks";
 import { getWatchList, getStockName } from "../utils/watchList";
 
@@ -96,12 +96,17 @@ export default function SettingsPage() {
     setRunStatus("running");
     setRunMsg("");
     try {
-      const res = await runNow();
+      const res = await runFull();
       setRunStatus("done");
-      setRunMsg(res.data?.message || "計算完成");
+      setRunMsg(res.data?.message || "評分任務已啟動，完成後請重新整理儀表板");
     } catch (err) {
-      setRunStatus("error");
-      setRunMsg(err.response?.data?.message || "執行失敗，請稍後再試");
+      if (err.response?.status === 400) {
+        setRunStatus("error");
+        setRunMsg("評分任務已在進行中，請稍後");
+      } else {
+        setRunStatus("error");
+        setRunMsg(err.response?.data?.message || "執行失敗，請稍後再試");
+      }
     }
   };
 
@@ -462,7 +467,7 @@ export default function SettingsPage() {
       <div style={CARD_STYLE}>
         <h6 style={{ color: "#4fc3f7", marginBottom: 12 }}>手動觸發</h6>
         <p style={{ color: "#8ab4d4", fontSize: 13, marginBottom: 12 }}>
-          立即對所有監控股票執行 AI 評分分析，通常需要 30–60 秒。
+          對完整股票池（311 檔）執行 AI 評分分析，約需 5–10 分鐘。
         </p>
 
         <button
@@ -476,12 +481,18 @@ export default function SettingsPage() {
                 className="spinner-border spinner-border-sm me-2"
                 role="status"
               />
-              計算中...
+              評分進行中...
             </>
           ) : (
             "立即計算今日評分"
           )}
         </button>
+
+        {runStatus === "running" && (
+          <div style={{ fontSize: 12, color: "#4fc3f7", marginTop: 8 }}>
+            正在對所有股票池執行評分，約需 5–10 分鐘，完成後請重新整理儀表板
+          </div>
+        )}
 
         {runMsg && (
           <div

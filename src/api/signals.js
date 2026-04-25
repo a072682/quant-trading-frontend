@@ -23,3 +23,6 @@ export const getTopSignals = (limit = 10, minScore = 6) =>
 
 export const getTodayAllSignals = () =>
   api.get("/api/v1/signals/today-all");
+
+export const runFull = () =>
+  api.post("/api/v1/signals/run-full");
