@@ -99,8 +99,24 @@ export default function DashboardPage() {
     setIsRefreshing(true);
     try {
       const watchList = getWatchList();
-      await runNowWithStocks(watchList).catch(() => {});
-      await loadData();
+      if (watchList.length > 0) {
+        await runNowWithStocks(watchList).catch(() => {});
+      }
+      await Promise.allSettled([getTopSignals(3, 6), getTodayAllSignals()]).then(
+        ([topRes, allRes]) => {
+          if (topRes.status === "fulfilled") {
+            const raw = topRes.value.data?.data ?? topRes.value.data ?? [];
+            setTopSignals(Array.isArray(raw) ? raw.map(mapSignal) : []);
+          }
+          if (allRes.status === "fulfilled") {
+            const raw = allRes.value.data?.data ?? allRes.value.data ?? [];
+            const sorted = Array.isArray(raw)
+              ? [...raw].sort((a, b) => (b.total_score ?? 0) - (a.total_score ?? 0))
+              : [];
+            setAllSignals(sorted.map(mapSignal));
+          }
+        }
+      );
     } finally {
       setIsRefreshing(false);
     }

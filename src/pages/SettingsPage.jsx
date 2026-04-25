@@ -205,7 +205,10 @@ export default function SettingsPage() {
 
       {/* ── 監控股票清單 ── */}
       <div style={CARD_STYLE}>
-        <h6 style={{ color: "#4fc3f7", marginBottom: 16 }}>監控股票清單</h6>
+        <h6 style={{ color: "#4fc3f7", marginBottom: 6 }}>監控股票清單</h6>
+        <p style={{ color: "#8ab4d4", fontSize: 12, marginBottom: 14 }}>
+          額外追蹤的個股（選填，系統會自動從股票池掃描）
+        </p>
 
         <div className="d-flex flex-wrap gap-2 mb-3">
           {watchList.map(({ code, name }) => (
