@@ -110,7 +110,7 @@ export default function SettingsPage() {
   // ── 立即計算 ──────────────────────────────────
   const [runStatus, setRunStatus] = useState(() =>
     isFullScanActive() ? "running" : "idle"
-  ); // idle | running | error
+  ); // idle | running | done | error
   const [runMsg, setRunMsg] = useState("");
   const [scanStartTime, setScanStartTime] = useState(() => {
     const ts = localStorage.getItem(LS_FULL_SCAN);
@@ -140,6 +140,40 @@ export default function SettingsPage() {
       }
     }
   };
+
+  // 輪詢：runStatus=running 時每 30 秒查一次 stats，偵測評分完成
+  useEffect(() => {
+    if (runStatus !== "running") return;
+
+    const poll = async () => {
+      // 先檢查是否已超時
+      const ts = localStorage.getItem(LS_FULL_SCAN);
+      if (!ts || Date.now() - Number(ts) > FULL_SCAN_TIMEOUT_MS) {
+        localStorage.removeItem(LS_FULL_SCAN);
+        setScanStartTime(null);
+        setRunStatus("idle");
+        setRunMsg("評分任務已超時，請重新觸發");
+        return;
+      }
+
+      try {
+        const res = await api.get("/api/v1/signals/stats");
+        const count = res.data?.data?.recordCount ?? 0;
+        if (count > 10) {
+          localStorage.removeItem(LS_FULL_SCAN);
+          setScanStartTime(null);
+          setRunStatus("done");
+          setRunMsg("評分完成！請前往儀表板查看結果");
+        }
+      } catch {
+        // 輪詢失敗靜默忽略，下次繼續
+      }
+    };
+
+    poll(); // 立即執行一次（切回頁面時不用等 30 秒）
+    const timer = setInterval(poll, 30000);
+    return () => clearInterval(timer);
+  }, [runStatus]);
 
   // ── 股票池管理 ────────────────────────────────
   // 後端 getStockPool() 回傳陣列，拆成三個獨立 state 避免巢狀存取錯誤
@@ -535,7 +569,7 @@ export default function SettingsPage() {
             className={`mt-2`}
             style={{
               fontSize: 13,
-              color: runStatus === "error" ? "#ef5350" : "#4fc3f7",
+              color: runStatus === "error" ? "#ef5350" : runStatus === "done" ? "#26a69a" : "#4fc3f7",
             }}
           >
             {runMsg}
