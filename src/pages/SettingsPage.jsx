@@ -10,7 +10,7 @@ const LS_WATCH = "watchList";
 const LS_STRATEGY = "strategySettings";
 const LS_FILTERING = "isFiltering";
 const LS_FULL_SCAN = "fullScanRunning";
-const FULL_SCAN_TIMEOUT_MS = 15 * 60 * 1000;
+const FULL_SCAN_TIMEOUT_MS = 12 * 60 * 1000;
 
 function isFullScanActive() {
   const ts = localStorage.getItem(LS_FULL_SCAN);
@@ -20,6 +20,13 @@ function isFullScanActive() {
     return false;
   }
   return true;
+}
+
+function formatETA(startTs) {
+  return new Date(startTs + 10 * 60 * 1000).toLocaleTimeString("zh-TW", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 const CARD_STYLE = {
@@ -105,22 +112,31 @@ export default function SettingsPage() {
     isFullScanActive() ? "running" : "idle"
   ); // idle | running | error
   const [runMsg, setRunMsg] = useState("");
+  const [scanStartTime, setScanStartTime] = useState(() => {
+    const ts = localStorage.getItem(LS_FULL_SCAN);
+    return ts ? Number(ts) : null;
+  });
 
   const handleRunNow = async () => {
     setRunStatus("running");
     setRunMsg("");
     try {
       const res = await runFull();
-      localStorage.setItem(LS_FULL_SCAN, String(Date.now()));
+      const now = Date.now();
+      localStorage.setItem(LS_FULL_SCAN, String(now));
+      setScanStartTime(now);
       setRunMsg(res.data?.message || "評分任務已啟動，完成後請重新整理儀表板");
     } catch (err) {
       if (err.response?.status === 400) {
-        localStorage.setItem(LS_FULL_SCAN, String(Date.now()));
-        setRunMsg("評分任務已在進行中，請稍後");
+        const now = Date.now();
+        localStorage.setItem(LS_FULL_SCAN, String(now));
+        setScanStartTime(now);
+        setRunMsg("評分已在進行中");
       } else {
         localStorage.removeItem(LS_FULL_SCAN);
+        setScanStartTime(null);
         setRunStatus("error");
-        setRunMsg(err.response?.data?.message || "執行失敗，請稍後再試");
+        setRunMsg("評分啟動失敗，請稍後再試");
       }
     }
   };
@@ -506,6 +522,11 @@ export default function SettingsPage() {
         {runStatus === "running" && (
           <div style={{ fontSize: 12, color: "#4fc3f7", marginTop: 8 }}>
             正在對所有股票池執行評分，約需 5–10 分鐘，完成後請重新整理儀表板
+            {scanStartTime && (
+              <span style={{ marginLeft: 8 }}>
+                （預計完成時間：{formatETA(scanStartTime)}）
+              </span>
+            )}
           </div>
         )}
 
