@@ -9,6 +9,18 @@ const DEFAULT_STRATEGY = { buyThreshold: 5, stopLoss: -3, profitTarget: 6 };
 const LS_WATCH = "watchList";
 const LS_STRATEGY = "strategySettings";
 const LS_FILTERING = "isFiltering";
+const LS_FULL_SCAN = "fullScanRunning";
+const FULL_SCAN_TIMEOUT_MS = 15 * 60 * 1000;
+
+function isFullScanActive() {
+  const ts = localStorage.getItem(LS_FULL_SCAN);
+  if (!ts) return false;
+  if (Date.now() - Number(ts) > FULL_SCAN_TIMEOUT_MS) {
+    localStorage.removeItem(LS_FULL_SCAN);
+    return false;
+  }
+  return true;
+}
 
 const CARD_STYLE = {
   background: "#0d1b2e",
@@ -89,7 +101,9 @@ export default function SettingsPage() {
   }, []);
 
   // ── 立即計算 ──────────────────────────────────
-  const [runStatus, setRunStatus] = useState("idle"); // idle | running | done | error
+  const [runStatus, setRunStatus] = useState(() =>
+    isFullScanActive() ? "running" : "idle"
+  ); // idle | running | error
   const [runMsg, setRunMsg] = useState("");
 
   const handleRunNow = async () => {
@@ -97,13 +111,14 @@ export default function SettingsPage() {
     setRunMsg("");
     try {
       const res = await runFull();
-      setRunStatus("done");
+      localStorage.setItem(LS_FULL_SCAN, String(Date.now()));
       setRunMsg(res.data?.message || "評分任務已啟動，完成後請重新整理儀表板");
     } catch (err) {
       if (err.response?.status === 400) {
-        setRunStatus("error");
+        localStorage.setItem(LS_FULL_SCAN, String(Date.now()));
         setRunMsg("評分任務已在進行中，請稍後");
       } else {
+        localStorage.removeItem(LS_FULL_SCAN);
         setRunStatus("error");
         setRunMsg(err.response?.data?.message || "執行失敗，請稍後再試");
       }
@@ -499,7 +514,7 @@ export default function SettingsPage() {
             className={`mt-2`}
             style={{
               fontSize: 13,
-              color: runStatus === "done" ? "#26a69a" : "#ef5350",
+              color: runStatus === "error" ? "#ef5350" : "#4fc3f7",
             }}
           >
             {runMsg}
