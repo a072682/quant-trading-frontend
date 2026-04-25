@@ -57,9 +57,11 @@ export default function DashboardPage() {
   const [allSignals, setAllSignals] = useState([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
 
   const loadData = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const [topRes, allRes, posRes] = await Promise.allSettled([
         getTopSignals(3, 6),
@@ -70,6 +72,8 @@ export default function DashboardPage() {
       if (topRes.status === "fulfilled") {
         const raw = topRes.value.data?.data ?? topRes.value.data ?? [];
         setTopSignals(Array.isArray(raw) ? raw.map(mapSignal) : []);
+      } else {
+        setTopSignals([]);
       }
 
       if (allRes.status === "fulfilled") {
@@ -78,6 +82,12 @@ export default function DashboardPage() {
           ? [...raw].sort((a, b) => (b.total_score ?? 0) - (a.total_score ?? 0))
           : [];
         setAllSignals(sorted.map(mapSignal));
+      } else {
+        setAllSignals([]);
+      }
+
+      if (topRes.status === "rejected" || allRes.status === "rejected") {
+        setLoadError("部分資料載入失敗（網路或伺服器錯誤），請稍後重新整理");
       }
 
       if (posRes.status === "fulfilled") {
@@ -102,21 +112,7 @@ export default function DashboardPage() {
       if (watchList.length > 0) {
         await runNowWithStocks(watchList).catch(() => {});
       }
-      await Promise.allSettled([getTopSignals(3, 6), getTodayAllSignals()]).then(
-        ([topRes, allRes]) => {
-          if (topRes.status === "fulfilled") {
-            const raw = topRes.value.data?.data ?? topRes.value.data ?? [];
-            setTopSignals(Array.isArray(raw) ? raw.map(mapSignal) : []);
-          }
-          if (allRes.status === "fulfilled") {
-            const raw = allRes.value.data?.data ?? allRes.value.data ?? [];
-            const sorted = Array.isArray(raw)
-              ? [...raw].sort((a, b) => (b.total_score ?? 0) - (a.total_score ?? 0))
-              : [];
-            setAllSignals(sorted.map(mapSignal));
-          }
-        }
-      );
+      await loadData();
     } finally {
       setIsRefreshing(false);
     }
@@ -201,6 +197,23 @@ export default function DashboardPage() {
         {/* Tab 內容 */}
         {loading ? (
           <p className="text-info">載入中...</p>
+        ) : loadError ? (
+          <>
+            <div style={{ color: "#ef5350", fontSize: 13, marginBottom: 16 }}>
+              ⚠ {loadError}
+            </div>
+            {activeTab === "top" ? (
+              topSignals.length > 0 && (
+                <div className="row g-3">{topSignals.map(renderSignalCard)}</div>
+              )
+            ) : (
+              allSignals.length > 0 && (
+                <div className="row g-3" style={{ maxHeight: "70vh", overflowY: "auto", paddingRight: 4 }}>
+                  {allSignals.map(renderSignalCard)}
+                </div>
+              )
+            )}
+          </>
         ) : activeTab === "top" ? (
           topSignals.length === 0 ? (
             <div
@@ -227,7 +240,7 @@ export default function DashboardPage() {
             style={{ maxHeight: "70vh", overflowY: "auto", paddingRight: 4 }}
           >
             {allSignals.length === 0 ? (
-              <p className="text-secondary">今日尚無任何評分資料</p>
+              <p className="text-secondary">今日尚無評分資料，請等待每日 14:00 排程執行</p>
             ) : (
               allSignals.map(renderSignalCard)
             )}
