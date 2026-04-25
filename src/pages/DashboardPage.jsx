@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { runNowWithStocks, getTopSignals, getTodayAllSignals } from "../api/signals";
+import { getTopSignals, getTodayAllSignals } from "../api/signals";
 import { getPositions } from "../api/positions";
 import { setPositions } from "../slice/positionSlice";
 import { open, MODALS } from "../slice/modalSlice";
 import ScoreCard from "../components/trading/ScoreCard/ScoreCard";
 import PositionCard from "../components/trading/PositionCard/PositionCard";
-import { getWatchList } from "../utils/watchList";
 import { getStrategySettings } from "../utils/strategy";
 
 const mapSignal = (d) => ({
@@ -108,10 +107,6 @@ export default function DashboardPage() {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      const watchList = getWatchList();
-      if (watchList.length > 0) {
-        await runNowWithStocks(watchList).catch(() => {});
-      }
       await loadData();
     } finally {
       setIsRefreshing(false);
@@ -173,7 +168,7 @@ export default function DashboardPage() {
             onClick={handleRefresh}
             disabled={isRefreshing}
           >
-            {isRefreshing ? "計算中...（監控清單）" : "重新整理"}
+            {isRefreshing ? "載入中..." : "重新整理"}
           </button>
         </div>
 
