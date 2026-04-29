@@ -1,10 +1,10 @@
 import { configureStore } from "@reduxjs/toolkit";
-import authReducer from "./authSlice";
-import signalsReducer from "./signalsSlice";
-import stocksReducer from "./stocksSlice";
+import authReducer from "./slice/authSlice";
+import signalsReducer from "./slice/signalsSlice";
+import stocksReducer from "./slice/stocksSlice";
 
 // 整合所有 slice reducer，建立全域 Redux store
-// main.jsx 中以 <Provider store={store}> 包住整個應用，讓所有元件都能存取
+// main.jsx 中以 <Provider store={store}> 包住整個應用
 const store = configureStore({
   reducer: {
     auth: authReducer,       // 管理登入狀態、token、後端連線狀態
