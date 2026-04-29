@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-// checkHealth：確認後端伺服器與資料庫連線狀態
-import { checkHealth } from "../api/auth";
+// useSelector：從 Redux store 讀取連線狀態（由 Header 統一管理，不重複呼叫 /api/health）
+import { useSelector } from "react-redux";
 // runFull：觸發全量評分；getTodaySignals：取得今日評分（用於輪詢完成偵測）
 import { runFull, getTodaySignals } from "../api/signals";
 // getStockPool：取得股票池清單；getFilterStatus：查詢篩選狀態；runFilter：觸發篩選
@@ -50,49 +50,41 @@ export default function SettingsPage() {
   const navigate = useNavigate();
 
   // ── 系統資訊 ──────────────────────────────────────────────────────────────
-  // systemInfo：整合三個 API 組合出的系統狀態物件，null 表示尚未載入
-  // 包含：server、database、timestamp、signalCount、stockCount、filterStatus
+  // 從 Redux store 讀取連線狀態，由 Header 統一維護，設定頁不重複呼叫 /api/health
+  const isConnected = useSelector((state) => state.auth.isConnected);
+
+  // systemInfo：整合今日評分筆數與股票池狀態，null 表示尚未載入
   const [systemInfo, setSystemInfo] = useState(null);
 
-  // 載入系統資訊：同時查詢 health、今日評分筆數、股票池篩選狀態
+  // 載入系統資訊：查詢今日評分筆數與股票池篩選狀態
   // getFilterStatus 可能回傳 404（尚未有篩選紀錄），以獨立 try/catch 處理
   const loadSystemInfo = async () => {
+    // 取得今日評分清單，用陣列長度當作「今日評分筆數」
+    let signalCount = 0;
     try {
-      // 取得後端伺服器與資料庫連線狀態
-      const healthRes = await checkHealth();
-
-      // 取得今日評分清單，用陣列長度當作「今日評分筆數」
-      let signalCount = 0;
-      try {
-        const signalsRes = await getTodaySignals();
-        signalCount = signalsRes.data?.data?.length ?? 0;
-      } catch {
-        // 尚無今日評分時維持 0
-      }
-
-      // 取得篩選任務狀態（可能尚未有篩選紀錄，回傳 404）
-      let stockCount = 0;
-      let filterStatusVal = "尚未執行";
-      try {
-        const statusRes = await getFilterStatus();
-        stockCount = statusRes.data?.data?.stock_count ?? 0;
-        filterStatusVal = statusRes.data?.data?.status ?? "尚未執行";
-      } catch {
-        // 尚未有篩選紀錄時維持預設值
-      }
-
-      // 將三個 API 的結果合併成單一 systemInfo 物件
-      setSystemInfo({
-        server: healthRes.data?.server,        // 伺服器狀態：ok 或 error
-        database: healthRes.data?.database,    // 資料庫狀態：ok 或 error
-        timestamp: healthRes.data?.timestamp,  // 伺服器目前時間
-        signalCount,                           // 今日評分筆數
-        stockCount,                            // 股票池股票數量
-        filterStatus: filterStatusVal,         // 篩選任務狀態
-      });
+      const signalsRes = await getTodaySignals();
+      signalCount = signalsRes.data?.data?.length ?? 0;
     } catch {
-      // health API 失敗視為完全無法連線
+      // 尚無今日評分時維持 0
     }
+
+    // 取得篩選任務狀態（可能尚未有篩選紀錄，回傳 404）
+    let stockCount = 0;
+    let filterStatusVal = "尚未執行";
+    try {
+      const statusRes = await getFilterStatus();
+      stockCount = statusRes.data?.data?.stock_count ?? 0;
+      filterStatusVal = statusRes.data?.data?.status ?? "尚未執行";
+    } catch {
+      // 尚未有篩選紀錄時維持預設值
+    }
+
+    // 將兩個 API 的結果合併成 systemInfo 物件
+    setSystemInfo({
+      signalCount,                  // 今日評分筆數
+      stockCount,                   // 股票池股票數量
+      filterStatus: filterStatusVal, // 篩選任務狀態
+    });
   };
 
   // 頁面掛載時執行一次系統資訊載入
@@ -291,54 +283,42 @@ export default function SettingsPage() {
       <div style={CARD_STYLE}>
         <h6 style={{ color: "#4fc3f7", marginBottom: 16 }}>系統資訊</h6>
 
-        {/* systemInfo 為 null 表示尚未載入完成，顯示確認中提示 */}
-        {!systemInfo ? (
-          <p style={{ color: "#8ab4d4", fontSize: 13 }}>連線確認中...</p>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13 }}>
 
-            {/* 伺服器狀態：ok 顯示綠色「正常」，其他顯示紅色「異常」 */}
-            <div style={{ color: "#8ab4d4" }}>
-              伺服器狀態：
-              <span style={{ color: systemInfo.server === "ok" ? "#26a69a" : "#ef5350", fontWeight: 600 }}>
-                {systemInfo.server === "ok" ? "正常" : "異常"}
-              </span>
-            </div>
-
-            {/* 資料庫狀態：ok 顯示綠色「正常」，其他顯示紅色「異常」 */}
-            <div style={{ color: "#8ab4d4" }}>
-              資料庫狀態：
-              <span style={{ color: systemInfo.database === "ok" ? "#26a69a" : "#ef5350", fontWeight: 600 }}>
-                {systemInfo.database === "ok" ? "正常" : "異常"}
-              </span>
-            </div>
-
-            {/* 伺服器時間：直接顯示後端回傳的 timestamp 字串 */}
-            <div style={{ color: "#8ab4d4" }}>
-              伺服器時間：
-              <span style={{ color: "#e0f0ff" }}>{systemInfo.timestamp ?? "—"}</span>
-            </div>
-
-            {/* 今日評分筆數：由 getTodaySignals 回傳陣列長度計算 */}
-            <div style={{ color: "#8ab4d4" }}>
-              今日評分數量：
-              <span style={{ color: "#e0f0ff" }}>{systemInfo.signalCount} 筆</span>
-            </div>
-
-            {/* 股票池數量：由 getFilterStatus 回傳的 stock_count 取得 */}
-            <div style={{ color: "#8ab4d4" }}>
-              股票池數量：
-              <span style={{ color: "#e0f0ff" }}>{systemInfo.stockCount} 支</span>
-            </div>
-
-            {/* 篩選狀態：由 getFilterStatus 回傳的 status 取得 */}
-            <div style={{ color: "#8ab4d4" }}>
-              篩選狀態：
-              <span style={{ color: "#e0f0ff" }}>{systemInfo.filterStatus}</span>
-            </div>
-
+          {/* 後端連線狀態：由 Header 統一維護，從 Redux store 讀取，不重複呼叫 API */}
+          <div style={{ color: "#8ab4d4" }}>
+            後端連線狀態：
+            <span style={{ color: isConnected ? "#26a69a" : "#ef5350", fontWeight: 600 }}>
+              {isConnected ? "正常" : "未連線"}
+            </span>
           </div>
-        )}
+
+          {/* systemInfo 為 null 表示 API 尚未載入完成 */}
+          {!systemInfo ? (
+            <div style={{ color: "#8ab4d4" }}>資料載入中...</div>
+          ) : (
+            <>
+              {/* 今日評分筆數：由 getTodaySignals 回傳陣列長度計算 */}
+              <div style={{ color: "#8ab4d4" }}>
+                今日評分數量：
+                <span style={{ color: "#e0f0ff" }}>{systemInfo.signalCount} 筆</span>
+              </div>
+
+              {/* 股票池數量：由 getFilterStatus 回傳的 stock_count 取得 */}
+              <div style={{ color: "#8ab4d4" }}>
+                股票池數量：
+                <span style={{ color: "#e0f0ff" }}>{systemInfo.stockCount} 支</span>
+              </div>
+
+              {/* 篩選狀態：由 getFilterStatus 回傳的 status 取得 */}
+              <div style={{ color: "#8ab4d4" }}>
+                篩選狀態：
+                <span style={{ color: "#e0f0ff" }}>{systemInfo.filterStatus}</span>
+              </div>
+            </>
+          )}
+
+        </div>
       </div>
 
       {/* ── 股票池管理 ── */}

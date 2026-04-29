@@ -1,36 +1,45 @@
 import { useState, useEffect } from "react";
 import { Navbar, Nav, Container, Badge } from "react-bootstrap";
 import { NavLink } from "react-router-dom";
+// useDispatch：觸發 Redux action；setConnected：更新全域連線狀態
+import { useDispatch } from "react-redux";
+import { setConnected } from "../../../slice/authSlice";
 // 使用統一的 axios 實例發送 health check 請求（自動帶 token）
 import api from "../../../api/index";
 import "./_Header.scss";
 
 export default function Header() {
-  // 後端連線狀態，預設為 false（未連線），等第一次 health check 完成後更新
+  const dispatch = useDispatch();
+
+  // 本地連線狀態，用於控制 Badge 顯示，預設為 false（未連線）
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    // 確認後端連線狀態的函式：呼叫 /api/health，success=true 代表伺服器與資料庫均正常
+    // 確認後端連線狀態：呼叫 /api/health，success=true 代表伺服器與資料庫均正常
     const checkHealth = async () => {
       try {
         const res = await api.get("/api/health");
-        // success=true 代表後端和資料庫都正常
-        setIsConnected(res.data?.success === true);
+        const connected = res.data?.success === true;
+        // 更新本地 state 控制 Badge 顯示
+        setIsConnected(connected);
+        // 同步更新 Redux store，讓其他頁面（例如設定頁）可以直接讀取連線狀態
+        dispatch(setConnected(connected));
       } catch {
         // 任何錯誤（網路斷線、後端未啟動）都視為未連線
         setIsConnected(false);
+        dispatch(setConnected(false));
       }
     };
 
     // 頁面載入時立即確認一次，不等待第一個 interval
     checkHealth();
 
-    // 每 30 秒自動重新確認一次連線狀態
-    const interval = setInterval(checkHealth, 30000);
+    // 每 60 分鐘自動重新確認一次連線狀態（health check 不需要頻繁呼叫）
+    const interval = setInterval(checkHealth, 3600000);
 
     // 元件卸載時清除定時器，避免記憶體洩漏
     return () => clearInterval(interval);
-  }, []); // 空依賴陣列：只在元件掛載時執行一次，interval 會自行維持
+  }, []); // 空依賴陣列：只在元件掛載時執行一次
 
   return (
     // fixed="top" 讓 Header 固定在頁面頂端，不隨捲動消失
