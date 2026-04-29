@@ -5,6 +5,9 @@ import { open, MODALS } from "../slice/modalSlice";
 import ScoreCard from "../components/trading/ScoreCard/ScoreCard";
 import { getStrategySettings } from "../utils/strategy";
 
+// 將後端回傳的評分原始物件轉換為前端統一格式
+// 輸入：後端評分物件（snake_case 欄位名稱）
+// 輸出：前端 signal 物件（camelCase 欄位名稱）
 const mapSignal = (d) => ({
   stockCode: d.stock_code,
   stockName: d.stock_name,
@@ -29,6 +32,7 @@ const TAB_BASE = {
   transition: "color 0.15s, border-color 0.15s",
 };
 
+// 根據 Tab 是否為當前選中狀態回傳對應樣式（選中時顯示藍色底線）
 const tabStyle = (active) => ({
   ...TAB_BASE,
   color: active ? "#4fc3f7" : "#4a6a8a",
@@ -38,13 +42,22 @@ const tabStyle = (active) => ({
 export default function DashboardPage() {
   const dispatch = useDispatch();
 
-  const [activeTab, setActiveTab] = useState("top"); // "top" | "all"
+  // activeTab：目前顯示的 Tab，"top" = 今日推薦，"all" = 全部評分
+  const [activeTab, setActiveTab] = useState("top");
+  // topSignals：今日推薦清單（最多 3 檔，評分 ≥ 門檻）
   const [topSignals, setTopSignals] = useState([]);
+  // allSignals：今日所有股票評分（完整股票池，依分數由高到低排序）
   const [allSignals, setAllSignals] = useState([]);
+  // isRefreshing：「重新整理」按鈕的 loading 狀態，防止重複點擊
   const [isRefreshing, setIsRefreshing] = useState(false);
+  // loading：頁面初次載入時的全域 loading 狀態
   const [loading, setLoading] = useState(true);
+  // loadError：部分 API 失敗時顯示的錯誤提示訊息
   const [loadError, setLoadError] = useState(null);
 
+  // 同時發送兩支 API：今日推薦 + 全部評分
+  // 使用 Promise.allSettled 確保其中一支失敗時不影響另一支的資料顯示
+  // allSignals 會在接收後依 total_score 由高到低重新排序
   const loadData = async () => {
     setLoading(true);
     setLoadError(null);
@@ -79,10 +92,13 @@ export default function DashboardPage() {
     }
   };
 
+  // 頁面掛載時自動載入一次資料，空依賴陣列確保只執行一次
   useEffect(() => {
     loadData();
   }, []);
 
+  // 使用者點擊「重新整理」時觸發，重新呼叫 loadData()
+  // 以獨立的 isRefreshing 狀態控制按鈕 disabled，避免與頁面初始 loading 混用
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
@@ -92,12 +108,16 @@ export default function DashboardPage() {
     }
   };
 
+  // 使用者點擊「確認買入」時，開啟確認買入 Modal 並傳入該股票的評分資料
   const handleBuyClick = (signal) => {
     dispatch(open({ modal: MODALS.CONFIRM_BUY, data: signal }));
   };
 
+  // 從 localStorage 讀取使用者設定的買進門檻分數，決定是否顯示「確認買入」按鈕
   const { buyThreshold } = getStrategySettings();
 
+  // 渲染單張評分卡片：若有錯誤旗標則顯示錯誤佔位框，否則渲染 ScoreCard
+  // 評分達到 buyThreshold 時額外顯示「確認買入」按鈕
   const renderSignalCard = (signal) => (
     <div key={signal.stockCode} className="col-12 col-md-6 col-lg-4">
       {signal.error ? (
@@ -164,7 +184,7 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        {/* Tab 內容 */}
+        {/* Tab 內容：loading → 錯誤提示 → 正常顯示（依 activeTab 切換） */}
         {loading ? (
           <p className="text-info">載入中...</p>
         ) : loadError ? (

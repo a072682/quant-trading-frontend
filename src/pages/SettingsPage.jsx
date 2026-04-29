@@ -5,13 +5,21 @@ import { runFull } from "../api/signals";
 import { getStockPool, getFilterStatus, runStockFilter } from "../api/stocks";
 import { getWatchList, getStockName } from "../utils/watchList";
 
+// 策略參數的預設值，用於首次進入或 localStorage 資料損毀時的備援
 const DEFAULT_STRATEGY = { buyThreshold: 5, stopLoss: -3, profitTarget: 6 };
+
+// localStorage 的 key 常數，集中管理避免散落各處造成拼寫錯誤
 const LS_WATCH = "watchList";
 const LS_STRATEGY = "strategySettings";
 const LS_FILTERING = "isFiltering";
-const LS_FULL_SCAN = "fullScanRunning";
+const LS_FULL_SCAN = "fullScanRunning"; // 儲存全量評分任務的啟動時間戳
+
+// 全量評分最長等待時間：12 分鐘，超過則視為任務異常，自動解除 running 狀態
 const FULL_SCAN_TIMEOUT_MS = 12 * 60 * 1000;
 
+// 檢查 localStorage 中是否有尚未超時的全量評分任務
+// 用於頁面重新載入時還原按鈕的 running 狀態，避免使用者切換頁面後按鈕被重置
+// 輸出：true = 任務仍在進行中；false = 無任務或已超時
 function isFullScanActive() {
   const ts = localStorage.getItem(LS_FULL_SCAN);
   if (!ts) return false;
@@ -22,6 +30,9 @@ function isFullScanActive() {
   return true;
 }
 
+// 根據任務啟動時間戳計算預估完成時間（假設約需 10 分鐘）
+// 輸入：startTs（任務啟動的 Unix 毫秒時間戳）
+// 輸出：台灣格式的時間字串，例如「14:35」
 function formatETA(startTs) {
   return new Date(startTs + 10 * 60 * 1000).toLocaleTimeString("zh-TW", {
     hour: "2-digit",
@@ -44,6 +55,9 @@ const INPUT_STYLE = {
   borderRadius: 6,
 };
 
+// 安全讀取 localStorage 並 JSON.parse，解析失敗時回傳 fallback
+// 輸入：key（localStorage key）、fallback（解析失敗時的預設值）
+// 輸出：解析後的物件，或 fallback
 function loadLS(key, fallback) {
   try {
     const raw = localStorage.getItem(key);
@@ -56,10 +70,15 @@ function loadLS(key, fallback) {
 export default function SettingsPage() {
   const navigate = useNavigate();
 
-  // ── 監控股票清單 ──────────────────────────────
+  // ── 監控股票清單 ──────────────────────────────────────────────────────────
+  // watchList：使用者手動新增的額外追蹤股票（儲存在 localStorage）
+  // newCode：新增股票的輸入框暫存值
   const [watchList, setWatchList] = useState(() => getWatchList());
   const [newCode, setNewCode] = useState("");
 
+  // 新增股票到監控清單
+  // 輸入：由 newCode state 取得使用者輸入的股票代號
+  // 輸出：更新 watchList state 並同步寫入 localStorage
   const addStock = () => {
     const code = newCode.trim().toUpperCase();
     if (!code || watchList.some((item) => item.code === code)) return;
@@ -69,31 +88,43 @@ export default function SettingsPage() {
     setNewCode("");
   };
 
+  // 從監控清單移除指定股票
+  // 輸入：code（股票代號字串）
+  // 輸出：更新 watchList state 並同步寫入 localStorage
   const removeStock = (code) => {
     const updated = watchList.filter((item) => item.code !== code);
     setWatchList(updated);
     localStorage.setItem(LS_WATCH, JSON.stringify(updated));
   };
 
-  // ── 策略參數 ──────────────────────────────────
+  // ── 策略參數 ──────────────────────────────────────────────────────────────
+  // strategy：目前生效的策略參數（buyThreshold、stopLoss、profitTarget）
+  // strategySaved：「儲存成功」的短暫提示旗標，2 秒後自動清除
   const [strategy, setStrategy] = useState(() =>
     loadLS(LS_STRATEGY, DEFAULT_STRATEGY)
   );
   const [strategySaved, setStrategySaved] = useState(false);
 
+  // 更新單一策略欄位，不影響其他欄位
   const updateStrategy = (key, value) =>
     setStrategy((prev) => ({ ...prev, [key]: value }));
 
+  // 將目前策略參數儲存到 localStorage，並顯示 2 秒的確認提示
   const saveStrategy = () => {
     localStorage.setItem(LS_STRATEGY, JSON.stringify(strategy));
     setStrategySaved(true);
     setTimeout(() => setStrategySaved(false), 2000);
   };
 
-  // ── 系統資訊 ──────────────────────────────────
+  // ── 系統資訊 ──────────────────────────────────────────────────────────────
+  // connStatus：後端連線狀態，"checking" | "ok" | "error"
+  // sysInfo：後端回傳的評分統計資料（lastRunAt、recordCount）
   const [connStatus, setConnStatus] = useState("checking");
   const [sysInfo, setSysInfo] = useState(null);
 
+  // 頁面掛載時呼叫 /api/signals/stats 確認後端連線狀態
+  // 成功：顯示綠燈並記錄最後評分時間與筆數
+  // 失敗：顯示紅燈，不影響其他功能使用
   useEffect(() => {
     const checkConn = async () => {
       try {
@@ -107,16 +138,24 @@ export default function SettingsPage() {
     checkConn();
   }, []);
 
-  // ── 立即計算 ──────────────────────────────────
+  // ── 立即計算今日評分 ───────────────────────────────────────────────────────
+  // runStatus：評分任務的目前狀態，"idle" | "running" | "done" | "error"
+  //   - 頁面初始化時讀取 localStorage，若有未超時的任務則直接進入 running 狀態
+  // runMsg：顯示在按鈕下方的狀態說明文字
+  // scanStartTime：任務啟動的 Unix 時間戳，用於計算並顯示預估完成時間
   const [runStatus, setRunStatus] = useState(() =>
     isFullScanActive() ? "running" : "idle"
-  ); // idle | running | done | error
+  );
   const [runMsg, setRunMsg] = useState("");
   const [scanStartTime, setScanStartTime] = useState(() => {
     const ts = localStorage.getItem(LS_FULL_SCAN);
     return ts ? Number(ts) : null;
   });
 
+  // 「立即計算今日評分」按鈕的點擊處理
+  // 流程：呼叫 runFull() → 儲存啟動時間戳到 localStorage → 進入 running 狀態
+  // 後端回傳 400：表示評分已在進行中，仍進入 running 狀態等待完成
+  // 其他錯誤：進入 error 狀態並顯示錯誤訊息，清除 localStorage 旗標
   const handleRunNow = async () => {
     setRunStatus("running");
     setRunMsg("");
@@ -141,7 +180,10 @@ export default function SettingsPage() {
     }
   };
 
-  // 輪詢：runStatus=running 時每 30 秒查一次 stats，偵測評分完成
+  // 評分完成偵測輪詢：runStatus 為 "running" 時啟動，每 30 秒查詢一次 stats
+  // 偵測邏輯：若 recordCount > 10，判定評分已有結果，切換為 done 狀態
+  // 超時保護：若超過 FULL_SCAN_TIMEOUT_MS 仍未完成，自動回到 idle 並提示重新觸發
+  // 備註：useEffect cleanup 會在 runStatus 改變時清除舊的 interval，防止記憶體洩漏
   useEffect(() => {
     if (runStatus !== "running") return;
 
@@ -175,8 +217,13 @@ export default function SettingsPage() {
     return () => clearInterval(timer);
   }, [runStatus]);
 
-  // ── 股票池管理 ────────────────────────────────
-  // 後端 getStockPool() 回傳陣列，拆成三個獨立 state 避免巢狀存取錯誤
+  // ── 股票池管理 ────────────────────────────────────────────────────────────
+  // stockPool：後端回傳的完整股票池陣列（每個元素含 stock_code、stock_name、yield_pct、market_cap）
+  // poolCount：股票池目前的股票總數，null 表示尚未載入
+  // poolLastUpdated：股票池最後一次篩選完成的時間，取第一筆資料的 updated_at
+  // isFiltering：篩選任務是否進行中（true 時按鈕禁用、啟動輪詢）
+  // filterMsg：篩選狀態說明文字（進行中 / 完成 / 失敗）
+  // showPool：是否展開顯示股票池表格
   const [stockPool, setStockPool] = useState([]);
   const [poolCount, setPoolCount] = useState(null);
   const [poolLastUpdated, setPoolLastUpdated] = useState(null);
@@ -184,6 +231,8 @@ export default function SettingsPage() {
   const [filterMsg, setFilterMsg] = useState("");
   const [showPool, setShowPool] = useState(false);
 
+  // 將 getStockPool() 的回傳資料套用到三個獨立 state
+  // 後端回傳陣列而非物件，拆成三個 state 避免每次渲染都要做巢狀存取
   const applyPoolData = (raw) => {
     console.log("getStockPool() 回傳：", raw);
     const arr = Array.isArray(raw) ? raw : [];
@@ -192,6 +241,9 @@ export default function SettingsPage() {
     setPoolLastUpdated(arr[0]?.updated_at ?? null);
   };
 
+  // 根據後端回傳的篩選任務狀態更新 UI 與 localStorage 旗標
+  // 輸入：status（"running" | "completed" | "failed" | "idle"）、stock_count、error_message
+  // 備註：completed 和 failed 都會清除 localStorage 旗標，停止輪詢
   const applyFilterStatus = (status, stock_count, error_message) => {
     if (status === "running") {
       setIsFiltering(true);
@@ -211,7 +263,8 @@ export default function SettingsPage() {
     }
   };
 
-  // 頁面載入：取得股票池資料 + 以後端 status 為準決定初始狀態
+  // 頁面初始化：同時取得股票池清單與篩選任務狀態
+  // 以後端 status 為準決定 isFiltering 初始值，確保重新整理後狀態與後端一致
   useEffect(() => {
     const init = async () => {
       try {
@@ -228,7 +281,10 @@ export default function SettingsPage() {
     init();
   }, []);
 
-  // 輪詢：isFiltering=true 時每 30 秒查詢一次後端狀態
+  // 篩選任務完成偵測輪詢：isFiltering 為 true 時啟動，每 30 秒查詢一次後端狀態
+  // 若任務完成（completed）：重新拉取最新股票池並更新 UI
+  // 若任務失敗（failed）：顯示錯誤訊息並停止輪詢
+  // 備註：useEffect cleanup 會在 isFiltering 變為 false 時自動清除 interval
   useEffect(() => {
     if (!isFiltering) return;
 
@@ -255,6 +311,10 @@ export default function SettingsPage() {
     return () => clearInterval(timer);
   }, [isFiltering]);
 
+  // 「重新篩選股票池」按鈕的點擊處理
+  // 流程：立即更新 UI 為 running 狀態 → fire-and-forget 呼叫 runStockFilter()
+  //       → 實際完成狀態由上方輪詢偵測，不依賴此請求的回應
+  // 備註：runStockFilter() timeout 為 15 分鐘，但前端不等待它完成
   const handleFilter = () => {
     setIsFiltering(true);
     setFilterMsg("");
@@ -263,7 +323,8 @@ export default function SettingsPage() {
     runStockFilter().catch(() => {});
   };
 
-  // ── 登出 ──────────────────────────────────────
+  // ── 登出 ──────────────────────────────────────────────────────────────────
+  // 清除 localStorage 中的 JWT token，並導向登入頁
   const handleLogout = () => {
     localStorage.removeItem("token");
     navigate("/login");
