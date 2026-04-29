@@ -6,14 +6,8 @@ import { checkHealth } from "../api/auth";
 import { runFull, getTodaySignals } from "../api/signals";
 // getStockPool：取得股票池清單；getFilterStatus：查詢篩選狀態；runFilter：觸發篩選
 import { getStockPool, getFilterStatus, runFilter } from "../api/stocks";
-import { getWatchList, getStockName } from "../utils/watchList";
 
-// 策略參數的預設值，用於首次進入或 localStorage 資料損毀時的備援
-const DEFAULT_STRATEGY = { buyThreshold: 5, stopLoss: -3, profitTarget: 6 };
-
-// localStorage 的 key 常數，集中管理避免散落各處造成拼寫錯誤
-const LS_WATCH = "watchList";
-const LS_STRATEGY = "strategySettings";
+// localStorage 的 key 常數
 const LS_FILTERING = "isFiltering";
 const LS_FULL_SCAN = "fullScanRunning"; // 儲存全量評分任務的啟動時間戳
 
@@ -43,6 +37,7 @@ function formatETA(startTs) {
   });
 }
 
+// 通用卡片容器樣式
 const CARD_STYLE = {
   background: "#0d1b2e",
   borderRadius: 8,
@@ -51,73 +46,8 @@ const CARD_STYLE = {
   border: "1px solid #1e3a5f",
 };
 
-const INPUT_STYLE = {
-  background: "#06101e",
-  color: "#e0f0ff",
-  border: "1px solid #1e3a5f",
-  borderRadius: 6,
-};
-
-// 安全讀取 localStorage 並 JSON.parse，解析失敗時回傳 fallback
-// 輸入：key（localStorage key）、fallback（解析失敗時的預設值）
-// 輸出：解析後的物件，或 fallback
-function loadLS(key, fallback) {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
 export default function SettingsPage() {
   const navigate = useNavigate();
-
-  // ── 監控股票清單 ──────────────────────────────────────────────────────────
-  // watchList：使用者手動新增的額外追蹤股票（儲存在 localStorage）
-  // newCode：新增股票的輸入框暫存值
-  const [watchList, setWatchList] = useState(() => getWatchList());
-  const [newCode, setNewCode] = useState("");
-
-  // 新增股票到監控清單
-  // 輸入：由 newCode state 取得使用者輸入的股票代號
-  // 輸出：更新 watchList state 並同步寫入 localStorage
-  const addStock = () => {
-    const code = newCode.trim().toUpperCase();
-    if (!code || watchList.some((item) => item.code === code)) return;
-    const updated = [...watchList, { code, name: getStockName(code) }];
-    setWatchList(updated);
-    localStorage.setItem(LS_WATCH, JSON.stringify(updated));
-    setNewCode("");
-  };
-
-  // 從監控清單移除指定股票
-  // 輸入：code（股票代號字串）
-  // 輸出：更新 watchList state 並同步寫入 localStorage
-  const removeStock = (code) => {
-    const updated = watchList.filter((item) => item.code !== code);
-    setWatchList(updated);
-    localStorage.setItem(LS_WATCH, JSON.stringify(updated));
-  };
-
-  // ── 策略參數 ──────────────────────────────────────────────────────────────
-  // strategy：目前生效的策略參數（buyThreshold、stopLoss、profitTarget）
-  // strategySaved：「儲存成功」的短暫提示旗標，2 秒後自動清除
-  const [strategy, setStrategy] = useState(() =>
-    loadLS(LS_STRATEGY, DEFAULT_STRATEGY)
-  );
-  const [strategySaved, setStrategySaved] = useState(false);
-
-  // 更新單一策略欄位，不影響其他欄位
-  const updateStrategy = (key, value) =>
-    setStrategy((prev) => ({ ...prev, [key]: value }));
-
-  // 將目前策略參數儲存到 localStorage，並顯示 2 秒的確認提示
-  const saveStrategy = () => {
-    localStorage.setItem(LS_STRATEGY, JSON.stringify(strategy));
-    setStrategySaved(true);
-    setTimeout(() => setStrategySaved(false), 2000);
-  };
 
   // ── 系統資訊 ──────────────────────────────────────────────────────────────
   // systemInfo：整合三個 API 組合出的系統狀態物件，null 表示尚未載入
@@ -126,7 +56,6 @@ export default function SettingsPage() {
 
   // 載入系統資訊：同時查詢 health、今日評分筆數、股票池篩選狀態
   // getFilterStatus 可能回傳 404（尚未有篩選紀錄），以獨立 try/catch 處理
-  // 確保單一 API 失敗不影響其他資訊的顯示
   const loadSystemInfo = async () => {
     try {
       // 取得後端伺服器與資料庫連線狀態
@@ -138,7 +67,7 @@ export default function SettingsPage() {
         const signalsRes = await getTodaySignals();
         signalCount = signalsRes.data?.data?.length ?? 0;
       } catch {
-        // 尚無今日評分時維持 0，不影響其他資訊顯示
+        // 尚無今日評分時維持 0
       }
 
       // 取得篩選任務狀態（可能尚未有篩選紀錄，回傳 404）
@@ -154,15 +83,15 @@ export default function SettingsPage() {
 
       // 將三個 API 的結果合併成單一 systemInfo 物件
       setSystemInfo({
-        server: healthRes.data?.server,           // 伺服器狀態：ok 或 error
-        database: healthRes.data?.database,       // 資料庫狀態：ok 或 error
-        timestamp: healthRes.data?.timestamp,     // 伺服器目前時間
-        signalCount,                              // 今日評分筆數
-        stockCount,                               // 股票池股票數量
-        filterStatus: filterStatusVal,            // 篩選任務狀態
+        server: healthRes.data?.server,        // 伺服器狀態：ok 或 error
+        database: healthRes.data?.database,    // 資料庫狀態：ok 或 error
+        timestamp: healthRes.data?.timestamp,  // 伺服器目前時間
+        signalCount,                           // 今日評分筆數
+        stockCount,                            // 股票池股票數量
+        filterStatus: filterStatusVal,         // 篩選任務狀態
       });
     } catch {
-      // health API 失敗視為完全無法連線，不更新 systemInfo
+      // health API 失敗視為完全無法連線
     }
   };
 
@@ -213,10 +142,9 @@ export default function SettingsPage() {
     }
   };
 
-  // 評分完成偵測輪詢：runStatus 為 "running" 時啟動，每 30 秒查詢一次 stats
-  // 偵測邏輯：若 recordCount > 10，判定評分已有結果，切換為 done 狀態
+  // 評分完成偵測輪詢：runStatus 為 "running" 時啟動，每 30 秒查詢一次今日評分
+  // 偵測邏輯：評分筆數 > 10 代表評分已有結果，切換為 done 狀態
   // 超時保護：若超過 FULL_SCAN_TIMEOUT_MS 仍未完成，自動回到 idle 並提示重新觸發
-  // 備註：useEffect cleanup 會在 runStatus 改變時清除舊的 interval，防止記憶體洩漏
   useEffect(() => {
     if (runStatus !== "running") return;
 
@@ -252,11 +180,11 @@ export default function SettingsPage() {
   }, [runStatus]);
 
   // ── 股票池管理 ────────────────────────────────────────────────────────────
-  // stockPool：後端回傳的完整股票池陣列（每個元素含 stock_code、stock_name、yield_pct、market_cap）
+  // stockPool：後端回傳的完整股票池陣列
   // poolCount：股票池目前的股票總數，null 表示尚未載入
-  // poolLastUpdated：股票池最後一次篩選完成的時間，取第一筆資料的 updated_at
+  // poolLastUpdated：最後一次篩選完成的時間
   // isFiltering：篩選任務是否進行中（true 時按鈕禁用、啟動輪詢）
-  // filterMsg：篩選狀態說明文字（進行中 / 完成 / 失敗）
+  // filterMsg：篩選狀態說明文字
   // showPool：是否展開顯示股票池表格
   const [stockPool, setStockPool] = useState([]);
   const [poolCount, setPoolCount] = useState(null);
@@ -266,9 +194,7 @@ export default function SettingsPage() {
   const [showPool, setShowPool] = useState(false);
 
   // 將 getStockPool() 的回傳資料套用到三個獨立 state
-  // 後端回傳陣列而非物件，拆成三個 state 避免每次渲染都要做巢狀存取
   const applyPoolData = (raw) => {
-    console.log("getStockPool() 回傳：", raw);
     const arr = Array.isArray(raw) ? raw : [];
     setStockPool(arr);
     setPoolCount(arr.length);
@@ -277,7 +203,6 @@ export default function SettingsPage() {
 
   // 根據後端回傳的篩選任務狀態更新 UI 與 localStorage 旗標
   // 輸入：status（"running" | "completed" | "failed" | "idle"）、stock_count、error_message
-  // 備註：completed 和 failed 都會清除 localStorage 旗標，停止輪詢
   const applyFilterStatus = (status, stock_count, error_message) => {
     if (status === "running") {
       setIsFiltering(true);
@@ -297,8 +222,7 @@ export default function SettingsPage() {
     }
   };
 
-  // 頁面初始化：同時取得股票池清單與篩選任務狀態
-  // 以後端 status 為準決定 isFiltering 初始值，確保重新整理後狀態與後端一致
+  // 頁面初始化：取得股票池清單，並以後端 status 為準決定 isFiltering 初始值
   useEffect(() => {
     const init = async () => {
       try {
@@ -316,9 +240,7 @@ export default function SettingsPage() {
   }, []);
 
   // 篩選任務完成偵測輪詢：isFiltering 為 true 時啟動，每 30 秒查詢一次後端狀態
-  // 若任務完成（completed）：重新拉取最新股票池並更新 UI
-  // 若任務失敗（failed）：顯示錯誤訊息並停止輪詢
-  // 備註：useEffect cleanup 會在 isFiltering 變為 false 時自動清除 interval
+  // completed → 重新拉取最新股票池；failed → 顯示錯誤訊息並停止輪詢
   useEffect(() => {
     if (!isFiltering) return;
 
@@ -345,15 +267,12 @@ export default function SettingsPage() {
     return () => clearInterval(timer);
   }, [isFiltering]);
 
-  // 「重新篩選股票池」按鈕的點擊處理
-  // 流程：立即更新 UI 為 running 狀態 → fire-and-forget 呼叫 runFilter()
-  //       → 實際完成狀態由上方輪詢偵測，不依賴此請求的回應
-  // 備註：runFilter() timeout 為 15 分鐘，但前端不等待它完成
+  // 「開始篩選」按鈕的點擊處理
+  // fire-and-forget：立即更新 UI 為 running，實際狀態以 status API 輪詢為準
   const handleFilter = () => {
     setIsFiltering(true);
     setFilterMsg("");
     localStorage.setItem(LS_FILTERING, "true");
-    // fire-and-forget：實際狀態以 status API 輪詢為準
     runFilter().catch(() => {});
   };
 
@@ -367,118 +286,6 @@ export default function SettingsPage() {
   return (
     <div className="container-fluid py-4" style={{ maxWidth: 720 }}>
       <h5 className="section-title">系統設定</h5>
-
-      {/* ── 監控股票清單 ── */}
-      <div style={CARD_STYLE}>
-        <h6 style={{ color: "#4fc3f7", marginBottom: 6 }}>監控股票清單</h6>
-        <p style={{ color: "#8ab4d4", fontSize: 12, marginBottom: 14 }}>
-          額外追蹤的個股（選填，系統會自動從股票池掃描）
-        </p>
-
-        <div className="d-flex flex-wrap gap-2 mb-3">
-          {watchList.map(({ code, name }) => (
-            <div
-              key={code}
-              className="d-flex align-items-center gap-2"
-              style={{
-                background: "#06101e",
-                border: "1px solid #1e3a5f",
-                borderRadius: 6,
-                padding: "4px 10px",
-              }}
-            >
-              <span style={{ color: "#e0f0ff", fontWeight: 600 }}>{code}</span>
-              {name !== code && (
-                <span style={{ color: "#8ab4d4", fontSize: 12 }}>{name}</span>
-              )}
-              <button
-                onClick={() => removeStock(code)}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: "#ef5350",
-                  cursor: "pointer",
-                  padding: 0,
-                  fontSize: 14,
-                  lineHeight: 1,
-                }}
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-        </div>
-
-        <div className="d-flex gap-2">
-          <input
-            type="text"
-            className="form-control form-control-sm"
-            style={{ ...INPUT_STYLE, maxWidth: 140 }}
-            placeholder="股票代號"
-            value={newCode}
-            onChange={(e) => setNewCode(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && addStock()}
-          />
-          <button className="btn btn-outline-info btn-sm" onClick={addStock}>
-            新增
-          </button>
-        </div>
-      </div>
-
-      {/* ── 策略參數 ── */}
-      <div style={CARD_STYLE}>
-        <h6 style={{ color: "#4fc3f7", marginBottom: 16 }}>策略參數設定</h6>
-
-        <div className="mb-3">
-          <label style={{ color: "#8ab4d4", fontSize: 13, display: "block", marginBottom: 6 }}>
-            買進門檻（分）：<strong style={{ color: "#e0f0ff" }}>{strategy.buyThreshold}</strong>
-          </label>
-          <input
-            type="range"
-            className="form-range"
-            min={1}
-            max={8}
-            value={strategy.buyThreshold}
-            onChange={(e) => updateStrategy("buyThreshold", Number(e.target.value))}
-            style={{ accentColor: "#26a69a" }}
-          />
-          <div className="d-flex justify-content-between" style={{ fontSize: 11, color: "#4a6a8a" }}>
-            <span>1 分</span>
-            <span>8 分</span>
-          </div>
-        </div>
-
-        <div className="row g-3 mb-3">
-          <div className="col-6">
-            <label style={{ color: "#8ab4d4", fontSize: 13, display: "block", marginBottom: 6 }}>
-              停損設定（%）
-            </label>
-            <input
-              type="number"
-              className="form-control form-control-sm"
-              style={INPUT_STYLE}
-              value={strategy.stopLoss}
-              onChange={(e) => updateStrategy("stopLoss", Number(e.target.value))}
-            />
-          </div>
-          <div className="col-6">
-            <label style={{ color: "#8ab4d4", fontSize: 13, display: "block", marginBottom: 6 }}>
-              獲利目標（%）
-            </label>
-            <input
-              type="number"
-              className="form-control form-control-sm"
-              style={INPUT_STYLE}
-              value={strategy.profitTarget}
-              onChange={(e) => updateStrategy("profitTarget", Number(e.target.value))}
-            />
-          </div>
-        </div>
-
-        <button className="btn btn-outline-info btn-sm" onClick={saveStrategy}>
-          {strategySaved ? "✓ 已儲存" : "儲存設定"}
-        </button>
-      </div>
 
       {/* ── 系統資訊 ── */}
       <div style={CARD_STYLE}>
@@ -524,7 +331,7 @@ export default function SettingsPage() {
               <span style={{ color: "#e0f0ff" }}>{systemInfo.stockCount} 支</span>
             </div>
 
-            {/* 篩選狀態：由 getFilterStatus 回傳的 status 取得，預設顯示「尚未執行」 */}
+            {/* 篩選狀態：由 getFilterStatus 回傳的 status 取得 */}
             <div style={{ color: "#8ab4d4" }}>
               篩選狀態：
               <span style={{ color: "#e0f0ff" }}>{systemInfo.filterStatus}</span>
@@ -541,9 +348,7 @@ export default function SettingsPage() {
         <div style={{ color: "#8ab4d4", fontSize: 13, marginBottom: 12 }}>
           <div>
             上次篩選時間：
-            <span style={{ color: "#e0f0ff" }}>
-              {poolLastUpdated ?? "—"}
-            </span>
+            <span style={{ color: "#e0f0ff" }}>{poolLastUpdated ?? "—"}</span>
           </div>
           <div>
             目前股票池數量：
@@ -554,6 +359,7 @@ export default function SettingsPage() {
         </div>
 
         <div className="d-flex gap-2 flex-wrap mb-2">
+          {/* 篩選進行中時按鈕禁用，避免重複觸發 */}
           <button
             className="btn btn-outline-warning btn-sm"
             onClick={handleFilter}
@@ -562,6 +368,7 @@ export default function SettingsPage() {
           >
             {isFiltering ? "篩選中，約需 5~10 分鐘..." : "開始篩選"}
           </button>
+          {/* 展開 / 收合股票池表格 */}
           <button
             className="btn btn-outline-secondary btn-sm"
             onClick={() => setShowPool((v) => !v)}
@@ -570,6 +377,7 @@ export default function SettingsPage() {
           </button>
         </div>
 
+        {/* 篩選狀態訊息：顏色依完成/進行中/失敗區分 */}
         {filterMsg && (
           <div
             style={{
@@ -586,6 +394,7 @@ export default function SettingsPage() {
           </div>
         )}
 
+        {/* 股票池表格：showPool=true 時顯示 */}
         {showPool && (
           <div style={{ overflowX: "auto", marginTop: 8 }}>
             {stockPool.length === 0 ? (
@@ -618,7 +427,7 @@ export default function SettingsPage() {
                         {s.stock_code ?? "—"}
                       </td>
                       <td style={{ color: "#c8dff0", padding: "6px 12px", borderBottom: "1px solid #12243a" }}>
-                        {s.stock_name ?? getStockName(s.stock_code) ?? "—"}
+                        {s.stock_name ?? "—"}
                       </td>
                       <td style={{ color: "#c8dff0", padding: "6px 12px", borderBottom: "1px solid #12243a" }}>
                         {s.yield_pct != null ? `${Number(s.yield_pct).toFixed(2)}%` : "—"}
@@ -635,13 +444,14 @@ export default function SettingsPage() {
         )}
       </div>
 
-      {/* ── 立即計算 ── */}
+      {/* ── 立即計算今日評分 ── */}
       <div style={CARD_STYLE}>
         <h6 style={{ color: "#4fc3f7", marginBottom: 12 }}>手動觸發</h6>
         <p style={{ color: "#8ab4d4", fontSize: 13, marginBottom: 12 }}>
-          對完整股票池（311 檔）執行 AI 評分分析，約需 5–10 分鐘。
+          對完整股票池執行 AI 評分分析，約需 5–10 分鐘。
         </p>
 
+        {/* 評分進行中時顯示 spinner 並禁用按鈕 */}
         <button
           className="btn btn-outline-success btn-sm"
           onClick={handleRunNow}
@@ -649,10 +459,7 @@ export default function SettingsPage() {
         >
           {runStatus === "running" ? (
             <>
-              <span
-                className="spinner-border spinner-border-sm me-2"
-                role="status"
-              />
+              <span className="spinner-border spinner-border-sm me-2" role="status" />
               評分進行中...
             </>
           ) : (
@@ -660,6 +467,7 @@ export default function SettingsPage() {
           )}
         </button>
 
+        {/* 評分進行中：顯示預估完成時間 */}
         {runStatus === "running" && (
           <div style={{ fontSize: 12, color: "#4fc3f7", marginTop: 8 }}>
             正在對所有股票池執行評分，約需 5–10 分鐘，完成後請重新整理儀表板
@@ -671,11 +479,12 @@ export default function SettingsPage() {
           </div>
         )}
 
+        {/* 狀態訊息：依 runStatus 顯示對應顏色 */}
         {runMsg && (
           <div
-            className={`mt-2`}
             style={{
               fontSize: 13,
+              marginTop: 8,
               color: runStatus === "error" ? "#ef5350" : runStatus === "done" ? "#26a69a" : "#4fc3f7",
             }}
           >
