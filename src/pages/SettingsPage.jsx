@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
 import { runFull } from "../api/signals";
-import { getStockPool, getFilterStatus, runStockFilter } from "../api/stocks";
+import { getStockPool, getFilterStatus, runFilter } from "../api/stocks";
 import { getWatchList, getStockName } from "../utils/watchList";
 
 // 策略參數的預設值，用於首次進入或 localStorage 資料損毀時的備援
@@ -312,15 +312,15 @@ export default function SettingsPage() {
   }, [isFiltering]);
 
   // 「重新篩選股票池」按鈕的點擊處理
-  // 流程：立即更新 UI 為 running 狀態 → fire-and-forget 呼叫 runStockFilter()
+  // 流程：立即更新 UI 為 running 狀態 → fire-and-forget 呼叫 runFilter()
   //       → 實際完成狀態由上方輪詢偵測，不依賴此請求的回應
-  // 備註：runStockFilter() timeout 為 15 分鐘，但前端不等待它完成
+  // 備註：runFilter() timeout 為 15 分鐘，但前端不等待它完成
   const handleFilter = () => {
     setIsFiltering(true);
     setFilterMsg("");
     localStorage.setItem(LS_FILTERING, "true");
     // fire-and-forget：實際狀態以 status API 輪詢為準
-    runStockFilter().catch(() => {});
+    runFilter().catch(() => {});
   };
 
   // ── 登出 ──────────────────────────────────────────────────────────────────
