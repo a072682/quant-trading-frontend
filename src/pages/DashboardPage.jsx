@@ -1,11 +1,8 @@
 import { useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import { getTopSignals, getTodayAllSignals } from "../api/signals";
-import { getPositions } from "../api/positions";
-import { setPositions } from "../slice/positionSlice";
 import { open, MODALS } from "../slice/modalSlice";
 import ScoreCard from "../components/trading/ScoreCard/ScoreCard";
-import PositionCard from "../components/trading/PositionCard/PositionCard";
 import { getStrategySettings } from "../utils/strategy";
 
 const mapSignal = (d) => ({
@@ -19,15 +16,6 @@ const mapSignal = (d) => ({
   futuresScore: d.futures_score ?? 0,
   aiAction: d.ai_action,
   aiReason: d.ai_reason,
-});
-
-const mapPosition = (d) => ({
-  stockCode: d.stock_code,
-  stockName: d.stock_name,
-  quantity: d.quantity,
-  avgCost: d.avg_cost,
-  currentPrice: d.current_price,
-  unrealizedProfit: d.unrealized_profit,
 });
 
 // Tab 樣式
@@ -49,7 +37,6 @@ const tabStyle = (active) => ({
 
 export default function DashboardPage() {
   const dispatch = useDispatch();
-  const positions = useSelector((state) => state.position.list);
 
   const [activeTab, setActiveTab] = useState("top"); // "top" | "all"
   const [topSignals, setTopSignals] = useState([]);
@@ -62,10 +49,9 @@ export default function DashboardPage() {
     setLoading(true);
     setLoadError(null);
     try {
-      const [topRes, allRes, posRes] = await Promise.allSettled([
+      const [topRes, allRes] = await Promise.allSettled([
         getTopSignals(3, 6),
         getTodayAllSignals(),
-        getPositions(),
       ]);
 
       if (topRes.status === "fulfilled") {
@@ -88,13 +74,6 @@ export default function DashboardPage() {
       if (topRes.status === "rejected" || allRes.status === "rejected") {
         setLoadError("部分資料載入失敗（網路或伺服器錯誤），請稍後重新整理");
       }
-
-      if (posRes.status === "fulfilled") {
-        const posList = Array.isArray(posRes.value.data?.data)
-          ? posRes.value.data.data.map(mapPosition)
-          : [];
-        dispatch(setPositions(posList));
-      }
     } finally {
       setLoading(false);
     }
@@ -115,10 +94,6 @@ export default function DashboardPage() {
 
   const handleBuyClick = (signal) => {
     dispatch(open({ modal: MODALS.CONFIRM_BUY, data: signal }));
-  };
-
-  const handleSellClick = (position) => {
-    dispatch(open({ modal: MODALS.CONFIRM_SELL, data: position }));
   };
 
   const { buyThreshold } = getStrategySettings();
@@ -243,19 +218,6 @@ export default function DashboardPage() {
         )}
       </section>
 
-      <section className="mb-4">
-        <h5 className="section-title">目前持倉</h5>
-        <div className="row g-3">
-          {positions.map((pos) => (
-            <div key={pos.stockCode} className="col-12 col-md-6">
-              <PositionCard
-                position={pos}
-                onSell={() => handleSellClick(pos)}
-              />
-            </div>
-          ))}
-        </div>
-      </section>
     </div>
   );
 }

@@ -1,4 +1,6 @@
-import api from "./index";
+// TODO: 此檔案對應的後端功能尚未重構，待開發後啟用
 
-export const getPositions = () =>
-  api.get("/api/v1/positions/");
+// import api from "./index";
+
+// export const getPositions = () =>
+//   api.get("/api/v1/positions/");

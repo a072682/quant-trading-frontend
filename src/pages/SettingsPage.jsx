@@ -97,7 +97,7 @@ export default function SettingsPage() {
   useEffect(() => {
     const checkConn = async () => {
       try {
-        const res = await api.get("/api/v1/signals/stats");
+        const res = await api.get("/api/signals/stats");
         setSysInfo(res.data.data || null);
         setConnStatus("ok");
       } catch {
@@ -157,7 +157,7 @@ export default function SettingsPage() {
       }
 
       try {
-        const res = await api.get("/api/v1/signals/stats");
+        const res = await api.get("/api/signals/stats");
         const count = res.data?.data?.recordCount ?? 0;
         if (count > 10) {
           localStorage.removeItem(LS_FULL_SCAN);

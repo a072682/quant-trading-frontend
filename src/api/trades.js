@@ -1,13 +1,15 @@
-import api from "./index";
+// TODO: 此檔案對應的後端功能尚未重構，待開發後啟用
 
-export const getTradeList = () =>
-  api.get("/api/v1/trades");
+// import api from "./index";
 
-export const getMonthlyStats = () =>
-  api.get("/api/v1/trades/monthly-stats");
+// export const getTradeList = () =>
+//   api.get("/api/v1/trades");
 
-export const confirmBuy = (data) =>
-  api.post("/api/v1/trades/buy", data);
+// export const getMonthlyStats = () =>
+//   api.get("/api/v1/trades/monthly-stats");
 
-export const confirmSell = (data) =>
-  api.post("/api/v1/trades/sell", data);
+// export const confirmBuy = (data) =>
+//   api.post("/api/v1/trades/buy", data);
+
+// export const confirmSell = (data) =>
+//   api.post("/api/v1/trades/sell", data);
