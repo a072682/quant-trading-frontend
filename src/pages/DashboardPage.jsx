@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
-import { useDispatch } from "react-redux";
-import { getTopSignals, getTodayAllSignals } from "../api/signals";
-import { open, MODALS } from "../slice/modalSlice";
+// TODO: 待 signalsSlice 建好後，改用 useSelector 從 store 取資料，dispatch thunk 觸發載入
+// import { getTopSignals, getTodayAllSignals } from "../api/signals";
+// TODO: 待 modalSlice 重新建立後啟用
+// import { useDispatch } from "react-redux";
+// import { open, MODALS } from "../slice/modalSlice";
 import ScoreCard from "../components/trading/ScoreCard/ScoreCard";
 import { getStrategySettings } from "../utils/strategy";
 
 // 將後端回傳的評分原始物件轉換為前端統一格式
-// 輸入：後端評分物件（snake_case 欄位名稱）
-// 輸出：前端 signal 物件（camelCase 欄位名稱）
 const mapSignal = (d) => ({
   stockCode: d.stock_code,
   stockName: d.stock_name,
@@ -21,7 +21,6 @@ const mapSignal = (d) => ({
   aiReason: d.ai_reason,
 });
 
-// Tab 樣式
 const TAB_BASE = {
   background: "none",
   border: "none",
@@ -32,7 +31,6 @@ const TAB_BASE = {
   transition: "color 0.15s, border-color 0.15s",
 };
 
-// 根據 Tab 是否為當前選中狀態回傳對應樣式（選中時顯示藍色底線）
 const tabStyle = (active) => ({
   ...TAB_BASE,
   color: active ? "#4fc3f7" : "#4a6a8a",
@@ -40,7 +38,8 @@ const tabStyle = (active) => ({
 });
 
 export default function DashboardPage() {
-  const dispatch = useDispatch();
+  // TODO: 待 signalsSlice 完成後，改為從 store 讀取資料
+  // const dispatch = useDispatch();
 
   // activeTab：目前顯示的 Tab，"top" = 今日推薦，"all" = 全部評分
   const [activeTab, setActiveTab] = useState("top");
@@ -48,57 +47,46 @@ export default function DashboardPage() {
   const [topSignals, setTopSignals] = useState([]);
   // allSignals：今日所有股票評分（完整股票池，依分數由高到低排序）
   const [allSignals, setAllSignals] = useState([]);
-  // isRefreshing：「重新整理」按鈕的 loading 狀態，防止重複點擊
+  // isRefreshing：「重新整理」按鈕的 loading 狀態
   const [isRefreshing, setIsRefreshing] = useState(false);
   // loading：頁面初次載入時的全域 loading 狀態
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   // loadError：部分 API 失敗時顯示的錯誤提示訊息
   const [loadError, setLoadError] = useState(null);
 
-  // 同時發送兩支 API：今日推薦 + 全部評分
-  // 使用 Promise.allSettled 確保其中一支失敗時不影響另一支的資料顯示
-  // allSignals 會在接收後依 total_score 由高到低重新排序
+  // TODO: 待 signalsSlice 完成後，改為 dispatch(fetchTopSignals()) 與 dispatch(fetchTodayAllSignals())
   const loadData = async () => {
     setLoading(true);
     setLoadError(null);
     try {
-      const [topRes, allRes] = await Promise.allSettled([
-        getTopSignals(3, 6),
-        getTodayAllSignals(),
-      ]);
-
-      if (topRes.status === "fulfilled") {
-        const raw = topRes.value.data?.data ?? topRes.value.data ?? [];
-        setTopSignals(Array.isArray(raw) ? raw.map(mapSignal) : []);
-      } else {
-        setTopSignals([]);
-      }
-
-      if (allRes.status === "fulfilled") {
-        const raw = allRes.value.data?.data ?? allRes.value.data ?? [];
-        const sorted = Array.isArray(raw)
-          ? [...raw].sort((a, b) => (b.total_score ?? 0) - (a.total_score ?? 0))
-          : [];
-        setAllSignals(sorted.map(mapSignal));
-      } else {
-        setAllSignals([]);
-      }
-
-      if (topRes.status === "rejected" || allRes.status === "rejected") {
-        setLoadError("部分資料載入失敗（網路或伺服器錯誤），請稍後重新整理");
-      }
+      // const [topRes, allRes] = await Promise.allSettled([
+      //   getTopSignals(3, 6),
+      //   getTodayAllSignals(),
+      // ]);
+      // if (topRes.status === "fulfilled") {
+      //   const raw = topRes.value.data?.data ?? topRes.value.data ?? [];
+      //   setTopSignals(Array.isArray(raw) ? raw.map(mapSignal) : []);
+      // } else { setTopSignals([]); }
+      // if (allRes.status === "fulfilled") {
+      //   const raw = allRes.value.data?.data ?? allRes.value.data ?? [];
+      //   const sorted = Array.isArray(raw)
+      //     ? [...raw].sort((a, b) => (b.total_score ?? 0) - (a.total_score ?? 0)) : [];
+      //   setAllSignals(sorted.map(mapSignal));
+      // } else { setAllSignals([]); }
+      // if (topRes.status === "rejected" || allRes.status === "rejected")
+      //   setLoadError("部分資料載入失敗（網路或伺服器錯誤），請稍後重新整理");
+      setLoadError("API 串接中，待 signalsSlice 完成後即可載入資料");
     } finally {
       setLoading(false);
     }
   };
 
-  // 頁面掛載時自動載入一次資料，空依賴陣列確保只執行一次
+  // 頁面掛載時自動載入一次資料
   useEffect(() => {
     loadData();
   }, []);
 
-  // 使用者點擊「重新整理」時觸發，重新呼叫 loadData()
-  // 以獨立的 isRefreshing 狀態控制按鈕 disabled，避免與頁面初始 loading 混用
+  // 使用者點擊「重新整理」時觸發
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
@@ -108,46 +96,24 @@ export default function DashboardPage() {
     }
   };
 
-  // 使用者點擊「確認買入」時，開啟確認買入 Modal 並傳入該股票的評分資料
-  const handleBuyClick = (signal) => {
-    dispatch(open({ modal: MODALS.CONFIRM_BUY, data: signal }));
-  };
+  // TODO: 待 modalSlice 重新建立後，恢復 dispatch(open({ modal: MODALS.CONFIRM_BUY, data: signal }))
+  // const handleBuyClick = (signal) => {
+  //   dispatch(open({ modal: MODALS.CONFIRM_BUY, data: signal }));
+  // };
 
-  // 從 localStorage 讀取使用者設定的買進門檻分數，決定是否顯示「確認買入」按鈕
+  // 從 localStorage 讀取使用者設定的買進門檻分數
   const { buyThreshold } = getStrategySettings();
 
-  // 渲染單張評分卡片：若有錯誤旗標則顯示錯誤佔位框，否則渲染 ScoreCard
-  // 評分達到 buyThreshold 時額外顯示「確認買入」按鈕
+  // 渲染單張評分卡片
   const renderSignalCard = (signal) => (
     <div key={signal.stockCode} className="col-12 col-md-6 col-lg-4">
       {signal.error ? (
-        <div
-          style={{
-            background: "#0d1b2e",
-            border: "1px solid #1e3a5f",
-            borderRadius: 8,
-            padding: "20px 16px",
-            textAlign: "center",
-            color: "#8ab4d4",
-          }}
-        >
-          <div style={{ fontWeight: 600, color: "#e0f0ff", marginBottom: 6 }}>
-            {signal.stockCode}
-          </div>
+        <div style={{ background: "#0d1b2e", border: "1px solid #1e3a5f", borderRadius: 8, padding: "20px 16px", textAlign: "center", color: "#8ab4d4" }}>
+          <div style={{ fontWeight: 600, color: "#e0f0ff", marginBottom: 6 }}>{signal.stockCode}</div>
           <div style={{ fontSize: 13 }}>尚無今日評分，請按重新整理</div>
         </div>
       ) : (
-        <>
-          <ScoreCard signal={signal} />
-          {signal.totalScore >= buyThreshold && (
-            <button
-              className="btn-buy w-100 mt-2"
-              onClick={() => handleBuyClick(signal)}
-            >
-              確認買入
-            </button>
-          )}
-        </>
+        <ScoreCard signal={signal} />
       )}
     </div>
   );
@@ -168,14 +134,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Tab 列 */}
-        <div
-          style={{
-            display: "flex",
-            borderBottom: "1px solid #1e3a5f",
-            marginBottom: 20,
-            marginTop: 12,
-          }}
-        >
+        <div style={{ display: "flex", borderBottom: "1px solid #1e3a5f", marginBottom: 20, marginTop: 12 }}>
           <button style={tabStyle(activeTab === "top")} onClick={() => setActiveTab("top")}>
             今日推薦（最多3檔，已排除持倉中的股票）
           </button>
@@ -184,51 +143,21 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        {/* Tab 內容：loading → 錯誤提示 → 正常顯示（依 activeTab 切換） */}
+        {/* Tab 內容 */}
         {loading ? (
           <p className="text-info">載入中...</p>
         ) : loadError ? (
-          <>
-            <div style={{ color: "#ef5350", fontSize: 13, marginBottom: 16 }}>
-              ⚠ {loadError}
-            </div>
-            {activeTab === "top" ? (
-              topSignals.length > 0 && (
-                <div className="row g-3">{topSignals.map(renderSignalCard)}</div>
-              )
-            ) : (
-              allSignals.length > 0 && (
-                <div className="row g-3" style={{ maxHeight: "70vh", overflowY: "auto", paddingRight: 4 }}>
-                  {allSignals.map(renderSignalCard)}
-                </div>
-              )
-            )}
-          </>
+          <div style={{ color: "#ffa726", fontSize: 13, marginBottom: 16 }}>⚠ {loadError}</div>
         ) : activeTab === "top" ? (
           topSignals.length === 0 ? (
-            <div
-              style={{
-                background: "#0d1b2e",
-                border: "1px solid #1e3a5f",
-                borderRadius: 8,
-                padding: "32px 24px",
-                textAlign: "center",
-                color: "#8ab4d4",
-                fontSize: 14,
-              }}
-            >
+            <div style={{ background: "#0d1b2e", border: "1px solid #1e3a5f", borderRadius: 8, padding: "32px 24px", textAlign: "center", color: "#8ab4d4", fontSize: 14 }}>
               今日無推薦，市場整體偏空，建議觀望
             </div>
           ) : (
-            <div className="row g-3">
-              {topSignals.map(renderSignalCard)}
-            </div>
+            <div className="row g-3">{topSignals.map(renderSignalCard)}</div>
           )
         ) : (
-          <div
-            className="row g-3"
-            style={{ maxHeight: "70vh", overflowY: "auto", paddingRight: 4 }}
-          >
+          <div className="row g-3" style={{ maxHeight: "70vh", overflowY: "auto", paddingRight: 4 }}>
             {allSignals.length === 0 ? (
               <p className="text-secondary">今日尚無評分資料，請等待每日 14:00 排程執行</p>
             ) : (
@@ -237,7 +166,6 @@ export default function DashboardPage() {
           </div>
         )}
       </section>
-
     </div>
   );
 }

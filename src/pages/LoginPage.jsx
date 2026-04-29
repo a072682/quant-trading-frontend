@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { login } from "../api/auth";
+// TODO: 待新版 api 模組建立（或改用 store dispatch）後取消此行
+// import { login } from "../api/auth";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -9,19 +10,20 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  // TODO: 待 authSlice 與 api 接好後，改為 dispatch(loginThunk({ email, password }))
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setIsLoading(true);
     try {
-      const res = await login(email, password);
-      const token = res.data?.data?.access_token;
-      if (!token) throw new Error("回傳資料中找不到 token");
-      localStorage.setItem("token", token);
-      navigate("/");
+      // const res = await login(email, password);
+      // const token = res.data?.data?.access_token;
+      // if (!token) throw new Error("回傳資料中找不到 token");
+      // localStorage.setItem("token", token);
+      // navigate("/");
+      setError("登入功能串接中，請稍後");
     } catch (err) {
-      const msg =
-        err.response?.data?.message ?? err.message ?? "登入失敗，請再試一次";
+      const msg = err.response?.data?.message ?? err.message ?? "登入失敗，請再試一次";
       setError(msg);
     } finally {
       setIsLoading(false);
@@ -42,9 +44,7 @@ export default function LoginPage() {
         )}
         <form onSubmit={handleSubmit}>
           <div className="mb-3">
-            <label htmlFor="email" className="form-label">
-              Email
-            </label>
+            <label htmlFor="email" className="form-label">Email</label>
             <input
               id="email"
               type="email"
@@ -56,9 +56,7 @@ export default function LoginPage() {
             />
           </div>
           <div className="mb-4">
-            <label htmlFor="password" className="form-label">
-              密碼
-            </label>
+            <label htmlFor="password" className="form-label">密碼</label>
             <input
               id="password"
               type="password"
@@ -69,11 +67,7 @@ export default function LoginPage() {
               autoComplete="current-password"
             />
           </div>
-          <button
-            type="submit"
-            className="btn btn-primary w-100"
-            disabled={isLoading}
-          >
+          <button type="submit" className="btn btn-primary w-100" disabled={isLoading}>
             {isLoading ? "登入中…" : "登入"}
           </button>
         </form>

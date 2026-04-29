@@ -21,7 +21,7 @@ api.interceptors.request.use((config) => {
 
 // Response 攔截器：統一處理後端回傳的錯誤狀態
 // 成功（2xx）：直接回傳 response，不做任何處理
-// 401 未授權：清除本地 token 並強制跳轉到登入頁，避免使用者停留在需要認證的頁面
+// 401 未授權：清除本地 token 並強制跳轉到登入頁
 // 其他錯誤：繼續拋出 Promise.reject，讓各個呼叫端自行處理
 api.interceptors.response.use(
   (response) => response,

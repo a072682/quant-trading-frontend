@@ -1,14 +1,16 @@
 import api from "./index";
 
 // 使用者登入
-// 輸入：email（字串）、password（字串）
-// 輸出：axios Promise，成功時 response.data 包含 access_token
-// 備註：後端採用 OAuth2 表單格式，需以 URLSearchParams 傳送，欄位名稱為 username/password
-export const login = (email, password) => {
-  const formData = new URLSearchParams();
-  formData.append("username", email);
-  formData.append("password", password);
-  return api.post("/api/auth/login", formData, {
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-  });
-};
+// 輸入：data 物件，格式為 { username: email字串, password: 密碼字串 }
+// 輸出：{ success, message, data: { access_token, token_type } }
+export const login = (data) => api.post("/api/auth/login", data);
+
+// 使用者登出（需帶 Authorization Header，由 api 實例自動附加）
+// 輸入：無
+// 輸出：{ success, message, data: { logged_out, timestamp } }
+export const logout = () => api.post("/api/auth/logout");
+
+// 後端健康確認，用於檢查伺服器與資料庫連線狀態
+// 輸入：無
+// 輸出：{ success, server, database, timestamp }
+export const checkHealth = () => api.get("/api/health");

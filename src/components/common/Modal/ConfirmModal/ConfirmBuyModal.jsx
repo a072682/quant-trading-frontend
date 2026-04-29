@@ -1,13 +1,13 @@
 import { useState } from "react";
-import { useDispatch } from "react-redux";
-import { close } from "../../../../slice/modalSlice";
+// TODO: 待 modalSlice 重新建立後，取消以下 import 並恢復 dispatch(close())
+// import { useDispatch } from "react-redux";
+// import { close } from "../../../../slice/modalSlice";
 // import { confirmBuy } from "../../../../api/trades";
 // TODO: 模擬交易功能待後端重構後再啟用
 // import { addTrade } from "../../../../slice/tradeSlice";
 import "./_ConfirmModal.scss";
 
-export default function ConfirmBuyModal({ data }) {
-  const dispatch = useDispatch();
+export default function ConfirmBuyModal({ data, onClose }) {
   const [notice, setNotice] = useState("");
 
   const handleConfirm = () => {
@@ -26,7 +26,7 @@ export default function ConfirmBuyModal({ data }) {
           <p style={{ color: "#ffa726", fontSize: 13, marginBottom: 8 }}>{notice}</p>
         )}
         <div className="modal-box__actions">
-          <button className="btn-modal-cancel" onClick={() => dispatch(close())}>
+          <button className="btn-modal-cancel" onClick={onClose}>
             取消
           </button>
           <button className="btn-modal-confirm btn-confirm--buy" onClick={handleConfirm}>
