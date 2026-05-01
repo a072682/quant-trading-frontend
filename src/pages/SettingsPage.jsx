@@ -3,9 +3,9 @@ import { useNavigate } from "react-router-dom";
 // useSelector：從 Redux store 讀取連線狀態（由 Header 統一管理，不重複呼叫 /api/health）
 import { useSelector } from "react-redux";
 // runFull：觸發全量評分；getTodaySignals：取得今日評分（用於輪詢完成偵測）
-import { runFull, getTodaySignals } from "../api/signals";
+import { runFull, getTodaySignals } from "../slice/api/signals";
 // getStockPool：取得股票池清單；getFilterStatus：查詢篩選狀態；runFilter：觸發篩選
-import { getStockPool, getFilterStatus, runFilter } from "../api/stocks";
+import { getStockPool, getFilterStatus, runFilter } from "../slice/api/stocks";
 
 // localStorage 的 key 常數
 const LS_FILTERING = "isFiltering";

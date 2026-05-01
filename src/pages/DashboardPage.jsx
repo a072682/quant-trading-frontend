@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 // getTopSignals：取得今日推薦前三名；getTodaySignals：取得今日所有評分
-import { getTopSignals, getTodaySignals } from "../api/signals";
+import { getTopSignals, getTodaySignals } from "../slice/api/signals";
 import ScoreCard from "../components/trading/ScoreCard/ScoreCard";
 
 // 將後端回傳的評分原始物件（snake_case）轉換為前端統一格式（camelCase）

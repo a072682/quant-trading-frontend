@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 // useDispatch：觸發 Redux action
 import { useDispatch } from "react-redux";
 // login：呼叫後端登入 API
-import { login } from "../api/auth";
+import { login } from "../slice/api/auth";
 // setLogin：登入成功後更新 Redux store 的認證狀態
 import { setLogin } from "../slice/authSlice";
 
