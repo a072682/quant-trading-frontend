@@ -80,6 +80,7 @@ export default function Header() {
           {/* 目前只開放儀表板和設定，其他頁面待後端重構後開放 */}
           <Nav className="ms-auto">
             <Nav.Link as={NavLink} to="/">儀表板</Nav.Link>
+            <Nav.Link as={NavLink} to="/simulation">模擬交易</Nav.Link>
             <Nav.Link as={NavLink} to="/settings">設定</Nav.Link>
           </Nav>
         </Navbar.Collapse>
