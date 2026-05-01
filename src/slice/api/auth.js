@@ -1,9 +1,14 @@
 import api from "./index";
 
 // 使用者登入
+// 後端使用 OAuth2PasswordRequestForm，需要 form 格式（非 JSON）
+// URLSearchParams 會自動將物件轉為 application/x-www-form-urlencoded
 // 輸入：data 物件，格式為 { username: email字串, password: 密碼字串 }
 // 輸出：{ success, message, data: { access_token, token_type } }
-export const login = (data) => api.post("/api/auth/login", data);
+export const login = (data) =>
+  api.post("/api/auth/login", new URLSearchParams(data), {
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+  });
 
 // 使用者登出（需帶 Authorization Header，由 api 實例自動附加）
 // 輸入：無
