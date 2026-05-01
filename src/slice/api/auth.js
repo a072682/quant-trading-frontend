@@ -10,7 +10,8 @@ export const login = (data) => api.post("/api/auth/login", data);
 // 輸出：{ success, message, data: { logged_out, timestamp } }
 export const logout = () => api.post("/api/auth/logout");
 
-// 後端健康確認，用於檢查伺服器與資料庫連線狀態
-// 輸入：無
-// 輸出：{ success, server, database, timestamp }
-export const checkHealth = () => api.get("/api/health");
+
+// 確認 token 是否仍然有效（需帶 Authorization Header）
+// 輸入：無（token 由 api 實例自動附加）
+// 輸出：{ success, message, data: { valid: true } }
+export const verifyToken = () => api.get("/api/auth/verify");

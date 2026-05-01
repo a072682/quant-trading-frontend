@@ -1,15 +1,15 @@
 import { useState, useEffect } from "react";
 import { Navbar, Nav, Container, Badge } from "react-bootstrap";
-import { NavLink } from "react-router-dom";
-// useDispatch：觸發 Redux action；setConnected：更新全域連線狀態
+import { NavLink, useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
-import { setConnected } from "../../../slice/authSlice";
-// 使用統一的 axios 實例發送 health check 請求（自動帶 token）
-import api from "../../../api/index";
+import { setConnected, setLogout } from "../../../slice/authSlice";
+import api from "../../../slice/api/index";
+import { verifyToken } from "../../../slice/api/auth";
 import "./_Header.scss";
 
 export default function Header() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   // 本地連線狀態，用於控制 Badge 顯示，預設為 false（未連線）
   const [isConnected, setIsConnected] = useState(false);
@@ -31,14 +31,31 @@ export default function Header() {
       }
     };
 
-    // 頁面載入時立即確認一次，不等待第一個 interval
+    const checkTokenValidity = async () => {
+      const token = localStorage.getItem("token");
+      // localStorage 沒有 token，視為未登入，清空狀態並跳轉登入頁
+      if (!token) {
+        dispatch(setLogout());
+        navigate("/login");
+        return;
+      }
+      try {
+        // 帶著 token 向後端確認是否仍然有效
+        await verifyToken();
+        // 200 回應：token 有效，不需要做任何事
+      } catch {
+        // 401 或其他錯誤：token 無效或過期，強制登出
+        localStorage.removeItem("token");
+        dispatch(setLogout());
+        navigate("/login");
+      }
+    };
+
+    // 頁面載入時確認一次連線
     checkHealth();
+    // 頁面載入時確認一次是否登入
+    checkTokenValidity();
 
-    // 每 60 分鐘自動重新確認一次連線狀態（health check 不需要頻繁呼叫）
-    const interval = setInterval(checkHealth, 3600000);
-
-    // 元件卸載時清除定時器，避免記憶體洩漏
-    return () => clearInterval(interval);
   }, []); // 空依賴陣列：只在元件掛載時執行一次
 
   return (
